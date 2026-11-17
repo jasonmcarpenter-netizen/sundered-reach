@@ -1,0 +1,32 @@
+﻿<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>cloudsave mock test</title><link rel="stylesheet" href="../../css/style.css"></head>
+<body><div id="app"></div><div id="modal"></div>
+<script>
+// In-memory stand-in for js/firebase.js: same API, no network
+window.MOCKDB = {}; window.MOCKLOG = [];
+(() => { let cb = null, user = null;
+  window.SR_FIREBASE = {
+    onUser(f){ cb = f; setTimeout(() => f(user), 0); },
+    async signIn(){ user = {uid:'u1', name:'Test Player'}; MOCKLOG.push('signIn'); setTimeout(() => cb(user), 0); },
+    async signOut(){ user = null; MOCKLOG.push('signOut'); setTimeout(() => cb(null), 0); },
+    async read(uid){ MOCKLOG.push('read ' + uid); return MOCKDB[uid] ? JSON.parse(JSON.stringify(MOCKDB[uid])) : null; },
+    async write(uid, d){ MOCKLOG.push('write ' + uid + ' savedAt=' + d.savedAt); MOCKDB[uid] = JSON.parse(JSON.stringify(d)); },
+    async remove(uid){ MOCKLOG.push('remove ' + uid); delete MOCKDB[uid]; }
+  };
+})();
+</script>
+<script src="../../js/cloudsave.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/heroes/kael/ch1.js"></script>
+<script src="../../js/heroes/ilsa/ch1.js"></script>
+<script src="../../js/combat.js"></script>
+<script src="../../js/ui.js"></script>
+<script src="../../js/saves.js"></script>
+<script src="../../js/heroes/tamsin/ch1.js"></script>
+<script src="../../js/heroes/wren/ch1.js"></script>
+<script src="../../js/chapters.js"></script>
+<script src="../../js/heroes/ilsa/ch2.js"></script>
+<script src="../../js/main.js"></script>
+</body></html>
+
+
