@@ -130,6 +130,30 @@
     B.ch('Hear them out'); B.ch(o.order === 'keepers' ? 'Keep faith' : 'Ring the bells'); B.ch('Continue'); B.ch('End of chapter 2');
     return notes;
   };
+  B.kael2 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('kael'); const st = nextStep('kael'); if (st.kind !== 'next' || st.n !== 2) throw new Error('kael ch2 not available: ' + JSON.stringify(st));
+    beginChapter(2); notes.push('start level ' + S.level);
+    B.ch('North along');
+    B.visit('k2_mill'); B.ch('Fight'); await fight(); B.ch('Back');
+    B.spendAll(['blades','tough']); restAt('k2_camp');
+    B.visit('k2_farm'); grab();
+    if (B.has('Show me the well')) B.ch('Show me the well'); else B.ch(o.farm === 'night' ? 'after dark' : 'I’ve seen');
+    B.ch(o.haul ? 'bare hands' : 'Listen to it'); B.ch('Back');
+    B.visit('k2_inn'); grab(); B.ch('Buy the carters'); B.ch('Back'); B.ch('Sit down'); B.ch('Back'); B.ch('Back to the map');
+    B.visit('k2_wagon'); grab();
+    if (B.has('Hit the wagon')){ B.ch('Hit the wagon'); await fight(); B.ch('Back'); }
+    else { B.ch(B.has('Search') ? 'Search' : 'Strip'); B.ch('Back'); }
+    if (o.pit !== false){ restAt('k2_camp'); B.visit('k2_pit'); B.ch('Fight'); await fight(); B.ch('Back'); }
+    B.spendAll(['blades','tough']); restAt('k2_camp');
+    B.visit('k2_onward'); B.ch('Down to');
+    B.visit('k2_toll'); B.ch('Back');
+    if (o.prep){ B.visit('k2_watch'); B.ch(o.prep === 'strings' ? 'crossbow string' : 'where it narrows'); B.ch('Back'); }
+    restAt('k2_bank');
+    B.visit('k2_crossing'); grab(); notes.push('boss at level ' + S.level); B.ch('Fight the Iron'); await fight();
+    B.ch('Decide'); B.ch(o.captain === 'handed' ? 'Hand her' : 'Tear up'); B.ch('Continue'); B.ch('End of chapter 2');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -151,6 +175,7 @@
       await B.wren({patrol:'fight', key:'kept'});
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:true, hold:'self'});
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'argue', order:'warners'});
+      if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({farm:'talk', prep:'strings', captain:'freed'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -158,6 +183,7 @@
       await B.wren({patrol:'bluff', key:'sold', spend:['lockpick','lore','stealth','bows']});
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:false, hold:'speak'});
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'fight', order:'keepers', chapel:false});
+      if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({haul:true, pit:false, captain:'handed'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -178,6 +204,14 @@
       B.spend(['divine','leadership','maces','survival']); gainXP(xp); B.spendAll(['divine','maces']); restAll(); S.flags.orrin = orrin; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('t2_boss').r === 'win') wins++;
       lines.push(`(Orrin ${orrin || 'never met'}) tamsin L${S.level} t2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Kael ch2: spared players reach Brask around level 5, Dario-killers around 6 (bigger crew); with and without a prep
+    if (COMBATS.k2_boss) for (const [d, prep, xp] of [['spared', null, 620], ['spared', 'strings', 620], ['ally', 'bottleneck', 620], ['killed', null, 880], ['killed', 'strings', 880]]){
+      M = null; S = null; beginHero('kael', true); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['leadership','lore','lockpick','survival']); gainXP(xp); B.spendAll(['blades','tough']); restAll();
+      S.flags.dario = d === 'killed' ? 'killed' : 'spared'; if (d === 'ally') S.flags.darioAlly = true; S.flags.k2Prep = prep; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('k2_boss').r === 'win') wins++;
+      lines.push(`(Dario ${d}, prep ${prep || 'none'}) kael L${S.level} k2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     try { localStorage.clear(); } catch (e) {} M = null; S = null; C = null; screen = 'title'; render(true);
     const errs = B.errors.slice(errs0);
