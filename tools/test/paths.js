@@ -262,6 +262,35 @@
     B.ch('Continue'); B.ch('End of chapter 3');
     return notes;
   };
+  B.wren3 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('wren'); const st = nextStep('wren'); if (st.kind !== 'next' || st.n !== 3) throw new Error('wren ch3 not available: ' + JSON.stringify(st));
+    beginChapter(3); notes.push('start level ' + S.level);
+    B.ch('Down the river');
+    B.visit('w3_tally'); grab();
+    if (B.has('I’ll take')) B.ch('I’ll take'); else if (B.has('Fight them off')) { B.ch('Fight them off'); await fight(); } else B.ch('Keep your head down');
+    B.ch('Back');
+    B.visit('w3_patrol');
+    if (B.has('Thank him')) B.ch('Thank him');
+    else if (B.has('Sink the crate')) B.ch('Sink the crate');
+    else if (B.has('Grain for')) B.ch('Grain for');
+    else if (B.has('When they board')) { B.ch('When they board'); await fight(); }
+    else B.ch('Watch it go');
+    B.ch('Back'); notes.push('patrol: ' + (S.flags.patrolHow3 || 'none'));
+    B.spendAll(['bows','tough']); restAt('w3_deck');
+    B.visit('w3_quell');
+    if (o.quell === 'pay' && B.has('Pay her')) B.ch('Pay her');
+    else if (B.has('steal your debt')) B.ch('steal your debt');
+    else { B.ch('see what her bargemen do'); await fight(); B.ch('Continue'); }
+    B.ch('Back'); notes.push('quell: ' + S.flags.quellHow);
+    B.visit('w3_onward'); B.ch('To Corvane Reach');
+    if (o.wreck){ B.visit('w3_wreck'); B.ch('Go aboard'); await fight(); B.ch('Back'); restAt('w3_reeds'); }
+    B.visit('w3_scout'); B.ch(B.has('Swim close') ? 'Swim close' : 'Count them'); B.ch('Back');
+    B.spendAll(['bows','tough']); restAt('w3_reeds');
+    B.visit('w3_barge'); notes.push('boss at level ' + S.level); B.ch('Fight'); await fight();
+    B.ch('Decide'); B.ch(o.barge === 'crown' ? 'Steer it' : 'Open the seacocks'); B.ch('Continue'); B.ch('End of chapter 3');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -286,6 +315,7 @@
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({farm:'talk', prep:'strings', captain:'freed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({gate:'guest', quiver:true, fragment:'kept'})).join(' | '));
       if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({magister:'home'})).join(' | '));
+      if (hasChapter('wren', 3)) lines.push('     wren3: ' + (await B.wren3({wreck:true, barge:'sunk'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({gate:'water', water:'force', cart:true, yardFight:true, hoard:'exposed'})).join(' | '));
       // The bot's Ilsa never carries Aurel, so put him at the Cathedral here to exercise Tamsin's cure path
       if (hasChapter('tamsin', 3)) { M.heroes.ilsa.flags.aurelSent = true; save(); }
@@ -300,6 +330,7 @@
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({haul:true, pit:false, captain:'handed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({glade:false, fragment:'crown'})).join(' | '));
       if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({postFight:true, magister:'crown'})).join(' | '));
+      if (hasChapter('wren', 3)) lines.push('     wren3: ' + (await B.wren3({quell:'pay', barge:'crown'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({rite:'saved', slow:true})).join(' | '));
     });
@@ -338,6 +369,14 @@
       S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
       lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
+    if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){
+      M = null; S = null; beginHero('wren', true); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['lockpick','lore','leadership','stealth']); gainXP(xp); B.spendAll(['bows','tough']); S.gear.bow = 2; S.gear.armor = 1; restAll();
+      Object.assign(S.flags, {tallyHelp:help, ritualLore:lore}); S.items.draught = 3; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w3_boss').r === 'win') wins++;
+      lines.push(`(${lore ? 'learned the hymn' : 'no hymn'}${help ? ', Iron Tally' : ''}) wren L${S.level} w3_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     // Tamsin ch3: Saul at levels 7–8, for Kael's hoard choice; slow find adds an ink-wraith
     if (COMBATS.t3_boss) for (const [hoard, late, xp] of [[null, false, 1160], ['exposed', false, 1160], ['quiet', false, 1160], ['quiet', true, 1160], [null, false, 1460]]){

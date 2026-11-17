@@ -10,7 +10,7 @@ python3 -m http.server
 # then open http://localhost:8000
 ```
 
-**Built so far:** opening chapters for all four heroes: Kael, Ilsa, Tamsin and Wren. Act 2 is next.
+**Built so far:** all of Act 1: three chapters each for Kael, Ilsa, Tamsin and Wren, ending with all four in Corvane. Act 2 is next.
 
 **Saving across devices:** choose "Sign in to sync" on the title screen or in the menu and sign in with Google. Your progress then follows you to any device where you sign in. Signed out, the game saves on the device you're playing on. You can also move a save by hand: Menu → save code, then "Use a save code" on the title screen of the other device.
 
