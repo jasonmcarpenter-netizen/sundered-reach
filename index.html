@@ -15,13 +15,15 @@
 <!-- Load order matters: plain scripts sharing one global scope, no build step. -->
 <script src="js/cloudsave.js"></script>
 <script src="js/core.js"></script>
-<script src="js/heroes/kael.js"></script>
-<script src="js/heroes/ilsa.js"></script>
+<script src="js/heroes/kael/ch1.js"></script>
+<script src="js/heroes/ilsa/ch1.js"></script>
 <script src="js/combat.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/saves.js"></script>
-<script src="js/heroes/tamsin.js"></script>
-<script src="js/heroes/wren.js"></script>
+<script src="js/heroes/tamsin/ch1.js"></script>
+<script src="js/heroes/wren/ch1.js"></script>
+<script src="js/chapters.js"></script>
+<!-- Later chapters go here, after chapters.js: js/heroes/<hero>/ch2.js, ch3.js -->
 <script src="js/main.js"></script>
 <!-- Firebase (Google sign-in + Firestore) loads as a module after the game; cloudsave.js waits for it. -->
 <script type="module" src="js/firebase.js"></script>

@@ -282,16 +282,16 @@ function openMenu(){
       h('button', {class:'btn ghost', onclick: openSaveCode}, 'Save code (move a save by hand)'),
       h('button', {class:'btn ghost', onclick: () => {
         confirmBox.innerHTML = '';
-        confirmBox.append(h('p', {}, `Restart ${H().name}’s chapter from the beginning? Only this hero’s progress is lost.`),
-          h('div', {style:'display:flex;gap:8px'}, h('button', {class:'btn', onclick: () => { closeModal(); C = null; beginHero(S.hero, true); }}, 'Restart'), h('button', {class:'btn ghost', onclick: () => { confirmBox.innerHTML = ''; }}, 'Keep playing')));
-      }}, `Restart ${H().name}’s chapter`),
+        confirmBox.append(h('p', {}, `Restart ${H().name}’s chapter ${chapterOf(S)} from its beginning? Only this hero’s progress in this chapter is lost.`),
+          h('div', {style:'display:flex;gap:8px'}, h('button', {class:'btn', onclick: () => { closeModal(); restartChapter(); }}, 'Restart'), h('button', {class:'btn ghost', onclick: () => { confirmBox.innerHTML = ''; }}, 'Keep playing')));
+      }}, `Restart ${H().name}’s chapter ${chapterOf(S)}`),
       confirmBox)
   );
 }
 
 // ---------- title, hero select, chapter end ----------
 function beginHero(id, fresh){
-  if (!M) M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null}};
+  if (!M) M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null, wren:null}};
   M.cur = id; screen = 'game';
   if (fresh || !M.heroes[id]){
     S = ({kael:kaelState, ilsa:ilsaState, tamsin:tamsinState, wren:wrenState})[id]();
@@ -329,12 +329,19 @@ function renderTitle(){
     h('button', {class:'linkbtn', onclick: openSaveCode}, 'Use a save code')
   ));
 }
+const nameList = ids => { const n = ids.map(id => HEROES[id].name); return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]; };
 function heroStatus(id){
-  const s = M && M.heroes[id];
-  if (!s) return {label:'Not started', btn:`Begin ${HEROES[id].name}’s chapter`};
-  if (s.mode === 'end') return {label:'Chapter complete', btn:'View the ending', done:true};
-  const where = s.mode === 'map' ? MAPS[s.map].title : s.mode === 'combat' ? 'In a fight' : (SCENES[s.scene] && SCENES[s.scene].view ? '' : '');
-  return {label:`In progress · level ${s.level}${where ? ' · ' + where : ''}`, btn:'Continue'};
+  const s = M && M.heroes[id]; const nx = nextStep(id);
+  if (!s) return {label:'Not started', btn:`Begin chapter 1: ${chapterTitle(id, 1)}`, act: () => beginHero(id)};
+  const n = chapterOf(s);
+  if (s.mode !== 'end'){
+    const where = s.mode === 'map' ? MAPS[s.map].title : s.mode === 'combat' ? 'In a fight' : '';
+    return {label:`Chapter ${n} · level ${s.level}${where ? ' · ' + where : ''}`, btn:'Continue', act: () => beginHero(id)};
+  }
+  const view = () => beginHero(id);
+  if (nx.kind === 'next') return {label:`Chapter ${n} complete · level ${s.level}`, btn:`Begin chapter ${nx.n}: ${chapterTitle(id, nx.n)}`, act: () => { beginHero(id); beginChapter(nx.n); }, view, done:true};
+  if (nx.kind === 'locked') return {label:`Chapter ${n} complete · chapter ${nx.n} opens when ${nameList(nx.lock)} ${nx.lock.length > 1 ? 'finish' : 'finishes'} chapter ${nx.n - 2}`, btn:'View the ending', act:view, done:true, replay: n === 1};
+  return {label:`Chapter ${n} complete · more to come`, btn:'View the ending', act:view, done:true, replay: n === 1};
 }
 function renderSelect(){
   if (selectNotice){ app.append(h('div', {class:'notice', role:'status', style:'margin-top:20px'}, selectNotice)); selectNotice = null; }
@@ -345,8 +352,9 @@ function renderSelect(){
     return h('div', {class:'hero'},
       h('h3', {}, hd.name), h('div', {class:'role'}, hd.roleLine), h('div', {class:'muted', style:'font-size:14px'}, hd.home), h('p', {}, hd.blurb),
       h('div', {class:'hstatus' + (st.done ? ' done' : '')}, st.label),
-      h('button', {class:'btn', onclick: () => beginHero(id)}, st.btn),
-      st.done ? h('button', {class:'btn ghost', onclick: () => beginHero(id, true)}, 'Play it again') : null);
+      h('button', {class:'btn', onclick: st.act}, st.btn),
+      st.view ? h('button', {class:'btn ghost', onclick: st.view}, 'View the last ending') : null,
+      st.replay ? h('button', {class:'btn ghost', onclick: () => beginHero(id, true)}, 'Replay from chapter 1') : null);
   });
   const locked = [].map(x => h('div', {class:'hero locked'}, h('h3', {}, x.n), h('div', {class:'role'}, x.role), h('div', {class:'muted', style:'font-size:14px'}, x.home), h('p', {}, x.t), h('button', {class:'btn ghost', disabled:true}, 'Not built yet')));
   app.append(h('div', {class:'heroes'}, cards, locked));
@@ -355,18 +363,26 @@ function renderSelect(){
 function renderEnd(){
   const hd = H();
   const top = Object.entries(S.pc.skills).filter(([id, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([id, v]) => `${SKILLS[id].name} ${v}`).join(', ');
-  const nextId = BUILT.find(id => id !== S.hero && !(M.heroes[id] && M.heroes[id].mode === 'end'));
-  const nextDone = !nextId;
+  const n = chapterOf(S), mine = nextStep(S.hero);
+  const others = BUILT.filter(id => id !== S.hero && nextStep(id).can);
+  const otherLabel = id => { const st = nextStep(id); return st.kind === 'start' ? `Play ${HEROES[id].name}’s chapter 1` : st.kind === 'continue' ? `Continue ${HEROES[id].name}’s chapter ${chapterOf(M.heroes[id])}` : `Play ${HEROES[id].name}’s chapter ${st.n}`; };
+  const goOther = id => { const st = nextStep(id); beginHero(id); if (st.kind === 'next') beginChapter(st.n); };
+  const nextId = others[0];
+  const nextDone = !mine.can && !nextId;
+  const nextText = mine.can ? `Next: ${hd.name}’s chapter ${mine.n}, ${chapterTitle(S.hero, mine.n)}. Or switch heroes. Your choices here will show up in their stories.`
+    : nextId ? `${mine.kind === 'locked' ? `${hd.name}’s chapter ${mine.n} opens when ${nameList(mine.lock)} ${mine.lock.length > 1 ? 'finish' : 'finishes'} chapter ${mine.n - 2}. ` : ''}Next: ${otherLabel(nextId).replace(/^(Play|Continue) /, '')}. Your choices here will show up in it.`
+    : 'Every chapter built so far is done. The rest of Act 1, the road to Corvane, is being written.';
   app.append(h('div', {class:'end', style:'padding-top:28px'},
-    h('h2', {}, `End of ${hd.name}’s Chapter`),
+    h('h2', {}, `End of ${hd.name}’s Chapter ${n}: ${chapterTitle(S.hero, n)}`),
     h('p', {}, `${hd.name} leaves at level ${S.level}, with ${top}.`),
     h('h3', {style:'font-size:20px;margin:18px 0 6px'}, 'How your choices echo'),
     hd.echoes().map(t => h('div', {class:'echo', html:t})),
     h('h3', {style:'font-size:20px;margin:18px 0 6px'}, 'Chronicle'),
     S.chronicle.map(t => h('div', {class:'q', style:'font-size:15px'}, t)),
-    h('p', {class:'muted', style:'margin-top:18px'}, nextDone ? 'Every Act 1 opening chapter is done. Next in the series: Act 2, when the four heroes meet in Corvane.' : `Next: ${HEROES[nextId].name}’s chapter. Your choices here will show up in it.`),
+    h('p', {class:'muted', style:'margin-top:18px'}, nextText),
     h('div', {style:'display:flex;gap:8px;flex-wrap:wrap'},
-      !nextDone ? h('button', {class:'btn', onclick: () => beginHero(nextId)}, `Play ${HEROES[nextId].name}’s chapter`) : null,
+      mine.can ? h('button', {class:'btn', onclick: () => beginChapter(mine.n)}, `Begin chapter ${mine.n}`) : null,
+      nextId ? h('button', {class: mine.can ? 'btn ghost' : 'btn', onclick: () => goOther(nextId)}, otherLabel(nextId)) : null,
       h('button', {class: nextDone ? 'btn' : 'btn ghost', onclick: () => { screen = 'select'; render(true); }}, 'Choose a hero'),
       h('button', {class:'btn ghost', onclick: () => { screen = 'title'; render(true); }}, 'Title screen'))
   ));

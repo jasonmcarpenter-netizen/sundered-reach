@@ -150,7 +150,7 @@ const otherF = id => (other(id) && other(id).flags) || {};
 const echo = (hero, text) => '@echo:' + `<b>Echo from ${HEROES[hero].name}’s chapter.</b> ${text}`;
 
 function baseState(hero){
-  return {v:2, hero, mode:'scene', scene:null, map:null, level:1, xp:0, skillPts:4, attrPts:0, gold:12,
+  return {v:2, hero, chapter:1, mode:'scene', scene:null, map:null, level:1, xp:0, skillPts:4, attrPts:0, gold:12,
     flags:{}, chronicle:[], quests:{}, combatId:null, notice:null};
 }
 function kaelState(){
