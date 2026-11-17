@@ -340,7 +340,7 @@ function heroStatus(id){
   }
   const view = () => beginHero(id);
   if (nx.kind === 'next') return {label:`Chapter ${n} complete · level ${s.level}`, btn:`Begin chapter ${nx.n}: ${chapterTitle(id, nx.n)}`, act: () => { beginHero(id); beginChapter(nx.n); }, view, done:true};
-  if (nx.kind === 'locked') return {label:`Chapter ${n} complete · chapter ${nx.n} opens when ${nameList(nx.lock)} ${nx.lock.length > 1 ? 'finish' : 'finishes'} chapter ${nx.n - 2}`, btn:'View the ending', act:view, done:true, replay: n === 1};
+  if (nx.kind === 'locked') return {label:`Chapter ${n} complete · chapter ${nx.n} opens when ${lockText(nx.lock)}`, btn:'View the ending', act:view, done:true, replay: n === 1};
   return {label:`Chapter ${n} complete · more to come`, btn:'View the ending', act:view, done:true, replay: n === 1};
 }
 function renderSelect(){
@@ -370,7 +370,7 @@ function renderEnd(){
   const nextId = others[0];
   const nextDone = !mine.can && !nextId;
   const nextText = mine.can ? `Next: ${hd.name}’s chapter ${mine.n}, ${chapterTitle(S.hero, mine.n)}. Or switch heroes. Your choices here will show up in their stories.`
-    : nextId ? `${mine.kind === 'locked' ? `${hd.name}’s chapter ${mine.n} opens when ${nameList(mine.lock)} ${mine.lock.length > 1 ? 'finish' : 'finishes'} chapter ${mine.n - 2}. ` : ''}Next: ${otherLabel(nextId).replace(/^(Play|Continue) /, '')}. Your choices here will show up in it.`
+    : nextId ? `${mine.kind === 'locked' ? `${hd.name}’s chapter ${mine.n} opens when ${lockText(mine.lock)}. ` : ''}Next: ${otherLabel(nextId).replace(/^(Play|Continue) /, '')}. Your choices here will show up in it.`
     : 'Every chapter built so far is done. The rest of Act 1, the road to Corvane, is being written.';
   app.append(h('div', {class:'end', style:'padding-top:28px'},
     h('h2', {}, `End of ${hd.name}’s Chapter ${n}: ${chapterTitle(S.hero, n)}`),

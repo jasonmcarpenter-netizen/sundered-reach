@@ -14,10 +14,21 @@ const chaptersDone = s => !s ? 0 : chapterOf(s) - (s.mode === 'end' ? 0 : 1);
 const hasChapter = (id, n) => !!(HEROES[id].chapters && HEROES[id].chapters[n]);
 const chapterTitle = (id, n) => hasChapter(id, n) ? HEROES[id].chapters[n].title : '';
 // No hero gets more than one chapter ahead: chapter n needs every other hero to have finished chapter n − 2.
-// Returns the heroes holding it back, or null if it can start.
+// A chapter can also name story dependencies: chapters[n].needs = [['tamsin', 1]] (it reacts to that chapter's choices).
+// Returns what's holding it back as [{id, ch}], or null if it can start.
 function chapterLock(id, n){
-  const behind = BUILT.filter(o => o !== id && chaptersDone(M && M.heroes[o]) < n - 2);
-  return behind.length ? behind : null;
+  const lock = [];
+  BUILT.forEach(o => { if (o !== id && n - 2 >= 1 && chaptersDone(M && M.heroes[o]) < n - 2) lock.push({id:o, ch:n - 2}); });
+  ((HEROES[id].chapters[n] || {}).needs || []).forEach(([o, ch]) => {
+    if (chaptersDone(M && M.heroes[o]) >= ch) return;
+    const have = lock.find(l => l.id === o); if (have) have.ch = Math.max(have.ch, ch); else lock.push({id:o, ch});
+  });
+  return lock.length ? lock : null;
+}
+// "Tamsin finishes chapter 1", "Tamsin and Wren finish chapter 1", "Kael finishes chapter 2 and Wren finishes chapter 1"
+function lockText(lock){
+  const byCh = {}; lock.forEach(l => (byCh[l.ch] = byCh[l.ch] || []).push(l.id));
+  return Object.entries(byCh).map(([ch, ids]) => `${nameList(ids)} ${ids.length > 1 ? 'finish' : 'finishes'} chapter ${ch}`).join(' and ');
 }
 const xpForLevel = l => l <= 1 ? 0 : nextXP(l - 1);
 // Catch-up XP: a hero more than 2 levels behind the leader is brought up to 2 below. Returns new levels gained.
