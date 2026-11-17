@@ -12,6 +12,6 @@ python3 -m http.server
 
 **Built so far:** opening chapters for all four heroes: Kael, Ilsa, Tamsin and Wren. Act 2 is next.
 
-**Moving your save:** in the old version, open Menu → save code and copy it. In this version, choose "Use a save code" on the title screen and paste it.
+**Saving across devices:** choose "Sign in to sync" on the title screen or in the menu and sign in with Google. Your progress then follows you to any device where you sign in. Signed out, the game saves on the device you're playing on. You can also move a save by hand: Menu → save code, then "Use a save code" on the title screen of the other device.
 
 See `CLAUDE.md` for the design rules and code layout.

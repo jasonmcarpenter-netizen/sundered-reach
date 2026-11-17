@@ -3,7 +3,7 @@
 A turn-based, story-heavy browser RPG in the Spiderweb Software tradition (Avernum, Geneforge, Avadon, Queen's Wish). This is Game 1 of a planned series. Owner: Jason. Full world and design doc: https://claude.ai/artifact/YVQGu9C4ys1ubYidV6PCSg. That doc is the source of truth for story and systems. This file is the short version, plus how the code works.
 
 ## Locked decisions (don't change without asking)
-- **Platform:** browser game in plain HTML/CSS/JavaScript, playable on phone and desktop. No framework and no build step.
+- **Platform:** browser game in plain HTML/CSS/JavaScript, playable on phone and desktop. No framework and no build step. (Firebase is loaded straight from its CDN as an ES module; there's still no bundler.)
 - **Combat:** menu-based and turn-based, with front and back rows and no grid movement. Actions are Attack, Skill/Spell, Item, Defend, Swap Row and Flee. Turn order comes from Grace plus a little randomness, and it's shown on screen. Some enemies telegraph big attacks a turn ahead.
 - **Look:** mostly rich text, with simple clickable maps for travel and locations. Torchlit-stone theme.
 - **Heroes:** Kael Dunmore (Human swordsman, Varrow), Ilsa Venn (Sylvari mage, Spire Coast), Tamsin Orlo (Stoneborn healer, Hearthdeep) and Wren (half-Sylvari rogue/archer, Thornwood). Keep these names. A Vessh hero is saved for Game 2.
@@ -32,13 +32,14 @@ These are plain `<script>` files that share one global scope, and **load order m
 
 | File | What's in it |
 |---|---|
-| `js/cloudsave.js` | `CloudSave`, which saves to the Claude artifact database when it's running inside Claude. Anywhere else, including GitHub Pages, it falls back to `localStorage` (status `'local'`). Also has the save-code helpers. |
+| `js/cloudsave.js` | `CloudSave`: online saves through Firebase (Google sign-in, Firestore doc `saves/{uid}`). Signed out, or if Firebase can't load, the game saves to `localStorage` only (status `'signedout'` or `'local'`). Same interface as before (`connect`, `pull`, `push`, `flush`, `clear`, `ready`, `status`, `label`, `onStatus`) plus `signIn`, `signOut`, `onSignIn`, `canSignIn` and `canSignOut`. Also has the save-code helpers. |
+| `js/firebase.js` | Loads the Firebase SDK (pinned 10.12.2 from gstatic) as an ES module **after** the plain scripts, holds the project config, and exposes `window.SR_FIREBASE` for `cloudsave.js`. The web config is public by design; the security comes from `firestore.rules`. |
 | `js/core.js` | Save state (`M` is the whole save, `S` the active hero, `C` combat), helpers (`h()` for DOM), rules (`ATTRS`, `SKILLS`, `HEROES`, `ALLIES`, `BUILT`, XP table) and `save()`. |
 | `js/heroes/kael.js` | The base `SCENES`, `MAPS`, `ENEMIES` and `COMBATS` (Kael's), plus the Kael and Ilsa echoes. |
 | `js/heroes/ilsa.js` | Ilsa's chapter, added with `Object.assign` into the shared tables. |
 | `js/combat.js` | Navigation (`go`, `toMap`) and the combat engine: `ACTIONS`, `ITEMS`, enemy AI, retry and step-back. |
 | `js/ui.js` | Rendering, modals (sheet, journal, menu), title, hero select and chapter end. |
-| `js/saves.js` | Save codes and cloud sync. |
+| `js/saves.js` | Save codes, cloud sync (`syncFromCloud`: the newer of the online and local saves wins, by `savedAt`) and `cloudBox()`, the status line with the "Sign in to sync" / "Sign out" button on the title screen and in the menu. |
 | `js/heroes/tamsin.js` | Tamsin's chapter, her skills and actions, Bracken, and her echoes into Kael and Ilsa. |
 | `js/heroes/wren.js` | Wren's chapter, Bows, her actions (Vanish sets `st.hidden` and `st.poised`, handled in `combat.js`), Tobin, and her echoes into the other three. Loads after `tamsin.js`. |
 | `js/main.js` | Start-up. |
@@ -51,6 +52,8 @@ Scene shape: `{ enter?(), view() -> {title, text:[html], choices:[{label, go?, a
 - Save key: `sundered-reach-v2`. The save shape is `{v, cur, heroes:{kael, ilsa, tamsin, …}}`.
 - Never rename or remove saved fields. If the shape has to change, add a migration (see how `OLD_KEY` is handled) and bump the key only as a last resort.
 - Players can move progress between devices or hosts with **Menu → save code**.
+- **Cloud saves:** signing in with Google syncs the whole save `{v, cur, heroes, savedAt}` to Firestore at `saves/{uid}` as `{json, savedAt, v}`. `localStorage` is always written too, so signed-out play works fully. On start-up and on every sign-in, `syncFromCloud` keeps whichever save has the newer `savedAt` and uploads the local one if it's newer. "Erase and start over" also deletes the online save.
+- **Firebase setup (console, project `sundered-reach`):** Authentication → Sign-in method → Google enabled; Authentication → Settings → Authorized domains includes `jasonmcarpenter-netizen.github.io` (localhost is there by default); Firestore Database created; Firestore → Rules = `firestore.rules` from this repo (each player can read and write only their own `saves/{uid}`). Rules changes are pasted into the console, not deployed from here.
 
 ## Working rules
 - Run it locally with `python3 -m http.server`, then open http://localhost:8000.
