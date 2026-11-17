@@ -69,7 +69,7 @@ Scene shape: `{ enter?(), view() -> {title, text:[html], choices:[{label, go?, a
 
 ## Working rules
 - Run it locally with `python3 -m http.server`, then open http://localhost:8000.
-- After any change, smoke-test by playing through each built chapter's main path, including its boss, and check for console errors.
-- **Balance target:** each chapter's boss should sometimes take a retry, and no single spell should end group fights in a turn or two (Arc Lightning was nerfed for exactly this). When tuning, write a quick headless sim and play each chapter about 30 times rather than guessing.
+- After any change, smoke-test by playing through each built chapter's main path, including its boss, and check for console errors. `tools/test/` automates this: load `bot.js` and `paths.js` into the game on localhost and run `await BOT.suite()` (steps in `tools/test/README.md`). It plays every chapter through both branch sets and simulates every boss. When you add a chapter, add its route and boss to `paths.js`, and add its script to `tools/test/mocktest.html` in the same order as `index.html`.
+- **Balance target:** each chapter's boss should sometimes take a retry, and no single spell should end group fights in a turn or two (Arc Lightning was nerfed for exactly this). When tuning, use `BOT.sim(hero, xp, combatId, runs, skillOrder, startingSkills)` from `tools/test/paths.js` rather than guessing.
 - Keep files under about 1,000 lines. If a hero file grows past that, split it into `scenes`, `data` and `combat` files.
 - Commit in small, clearly named steps. Update this file's "Where the build is" section when a chapter lands.
