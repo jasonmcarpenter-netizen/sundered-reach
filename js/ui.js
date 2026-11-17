@@ -99,6 +99,8 @@ function unitCard(u){
   if (st.taunt) chips.push(['Drawing attacks', 'good']);
   if (st.inspired) chips.push(['Inspired', 'good']);
   if (st.laststand) chips.push(['Last Stand', 'good']);
+  if (st.hidden) chips.push(['Vanished', 'good']);
+  if (st.poised) chips.push(['Sure strike', 'good']);
   let intent = null;
   if (u.side === 'enemy' && u.hp > 0) intent = u.winding ? h('div', {class:'intent warn'}, `Readying ${u.spec.name}! ${u.spec.aoe ? 'Hits everyone. Defend or Ward.' : 'Defend or stun it.'}`) : h('div', {class:'intent'}, u.ranged ? 'Ranged attacks' : 'Melee attacks');
   const body = [
@@ -219,7 +221,10 @@ function openSheet(){
         h('span', {class:'d'}, def.desc));
     };
     const [lo, hi] = pcDmg();
-    const glance = S.hero === 'tamsin' ? [
+    const glance = S.hero === 'wren' ? [
+      ['Health', `${k.hp}/${pcMax()}`], ['Bow damage', `${bowDmg()[0]}–${bowDmg()[1]}`], ['Bow hit', `${clamp(bowAcc(), 0, 95)}% base`],
+      ['Knife', `${lo}–${hi}`], ['Armor', `${pcArmor()} per hit`], ['Bow', S.gear.bowName], ['Crowns', S.gold]
+    ] : S.hero === 'tamsin' ? [
       ['Health', `${k.hp}/${pcMax()}`], ['Spell points', `${k.sp}/${spMax()}`],
       ['Mend heals', `${healAmt()}`], ['Smite', `${divineDmg()[0]}–${divineDmg()[1]}`],
       ['Mace', `${lo}–${hi}`], ['Armor', `${pcArmor()} per hit`], ['Lantern', S.gear.focusName], ['Crowns', S.gold]
@@ -289,7 +294,7 @@ function beginHero(id, fresh){
   if (!M) M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null}};
   M.cur = id; screen = 'game';
   if (fresh || !M.heroes[id]){
-    S = ({kael:kaelState, ilsa:ilsaState, tamsin:tamsinState})[id]();
+    S = ({kael:kaelState, ilsa:ilsaState, tamsin:tamsinState, wren:wrenState})[id]();
     M.heroes[id] = S;
     S.pc.hp = pcMax(); S.pc.sp = spMax();
     if (S.ally.joined) S.ally.hp = allyMax(); // Tamsin starts with Bracken already at her side
@@ -343,9 +348,7 @@ function renderSelect(){
       h('button', {class:'btn', onclick: () => beginHero(id)}, st.btn),
       st.done ? h('button', {class:'btn ghost', onclick: () => beginHero(id, true)}, 'Play it again') : null);
   });
-  const locked = [
-    {n:'Wren', role:'Rogue and archer · Half-Sylvari', home:'The Thornwood', t:'A smuggler hired to move a sealed crate, no questions asked.'}
-  ].map(x => h('div', {class:'hero locked'}, h('h3', {}, x.n), h('div', {class:'role'}, x.role), h('div', {class:'muted', style:'font-size:14px'}, x.home), h('p', {}, x.t), h('button', {class:'btn ghost', disabled:true}, 'Not built yet')));
+  const locked = [].map(x => h('div', {class:'hero locked'}, h('h3', {}, x.n), h('div', {class:'role'}, x.role), h('div', {class:'muted', style:'font-size:14px'}, x.home), h('p', {}, x.t), h('button', {class:'btn ghost', disabled:true}, 'Not built yet')));
   app.append(h('div', {class:'heroes'}, cards, locked));
   app.append(h('div', {style:'margin-top:16px'}, h('button', {class:'btn ghost', onclick: () => { screen = 'title'; render(true); }}, 'Back')));
 }
@@ -361,7 +364,7 @@ function renderEnd(){
     hd.echoes().map(t => h('div', {class:'echo', html:t})),
     h('h3', {style:'font-size:20px;margin:18px 0 6px'}, 'Chronicle'),
     S.chronicle.map(t => h('div', {class:'q', style:'font-size:15px'}, t)),
-    h('p', {class:'muted', style:'margin-top:18px'}, nextDone ? 'Every chapter built so far is done. Next in the series: Wren’s chapter in the Thornwood, and then Act 2, when the heroes meet in Corvane.' : `Next: ${HEROES[nextId].name}’s chapter. Your choices here will show up in it.`),
+    h('p', {class:'muted', style:'margin-top:18px'}, nextDone ? 'Every Act 1 opening chapter is done. Next in the series: Act 2, when the four heroes meet in Corvane.' : `Next: ${HEROES[nextId].name}’s chapter. Your choices here will show up in it.`),
     h('div', {style:'display:flex;gap:8px;flex-wrap:wrap'},
       !nextDone ? h('button', {class:'btn', onclick: () => beginHero(nextId)}, `Play ${HEROES[nextId].name}’s chapter`) : null,
       h('button', {class: nextDone ? 'btn' : 'btn ghost', onclick: () => { screen = 'select'; render(true); }}, 'Choose a hero'),

@@ -74,7 +74,7 @@ function step(){
   if (C.idx >= C.order.length){ newRound(); return; }
   const u = U(C.order[C.idx]);
   if (!u || u.hp <= 0){ C.idx++; step(); return; }
-  delete u.st.defend;
+  delete u.st.defend; delete u.st.hidden;
   for (const k in u.cd) if (u.cd[k] > 0) u.cd[k]--;
   tick(u);
   if (checkEnd()) return;
@@ -98,15 +98,18 @@ function strike(u, t, o){
   if (u.id === 'pc'){
     if (o.spell){ acc = spellAcc() - Math.floor(t.dodge / 2); [lo, hi] = spellDmg(); }
     else if (o.holy){ acc = divineAcc() - Math.floor(t.dodge / 2); [lo, hi] = divineDmg(); }
+    else if (o.bow){ acc = bowAcc() - t.dodge; [lo, hi] = bowDmg(); }
     else { acc = pcAcc() - t.dodge; [lo, hi] = pcDmg(); }
   } else { acc = 72 - t.dodge; [lo, hi] = ALLIES[S.ally.id].dmg(); }
   acc = clamp(acc + (u.st.inspired ? 10 : 0) + (o.accMod || 0), 15, 95);
   const lbl = o.label ? `${u.name}’s ${o.label}` : u.name;
-  if (rand(100) >= acc){ log(`${lbl} misses ${t.name}.`); return false; }
+  const sure = !!u.st.poised; // Wren after Vanish: her next attack can't miss and always crits
+  if (sure) delete u.st.poised;
+  if (!sure && rand(100) >= acc){ log(`${lbl} misses ${t.name}.`); return false; }
   let d = ri(lo, hi) * (o.mult || 1);
   if (u.st.grey) d *= 0.8;
   let crit = false;
-  if (u.id === 'pc' && rand(100) < 5 + S.pc.attrs.grace){ d *= 1.5; crit = true; }
+  if (u.id === 'pc' && (sure || rand(100) < 5 + S.pc.attrs.grace)){ d *= 1.5; crit = true; }
   d = Math.max(1, Math.round(d - t.armor));
   log(`${lbl} ${crit ? 'lands a critical hit on' : 'hits'} ${t.name} for ${d}.`);
   applyDmg(t, d);
@@ -214,7 +217,8 @@ function enemyStrike(e, t, mult, sp, aoe){
   if (e.greyChance && rand(100) < e.greyChance){ log(`${t.name} is grey-touched.`); addGrey(t, 2); }
 }
 function enemyAct(e){
-  const hs = heroesAlive(); if (!hs.length) return;
+  const hs = heroesAlive().filter(x => !x.st.hidden); // a Vanished hero can't be seen or hit
+  if (!hs.length){ log(e.winding ? `${e.name} holds the ${e.spec.name}, searching for a target.` : `${e.name} searches for a target and finds none.`); e.turns++; return; }
   const pickT = () => { const tt = hs.find(x => x.st.taunt); if (tt) return tt; if (e.ranged) return hs[rand(hs.length)]; const f = hs.filter(x => x.row === 'front'); const pool = f.length ? f : hs; return pool[rand(pool.length)]; };
   if (e.winding){
     e.winding = false;

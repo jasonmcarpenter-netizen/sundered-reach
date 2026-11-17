@@ -101,7 +101,7 @@ const ALLIES = {
   hask:{name:'Hask', max: () => 34 + S.level * 3, armor:3, init:3, dodge:2, row:'front', dmg: () => [5 + Math.floor(S.level / 2), 9 + Math.floor(S.level / 2)], actions:['hammer','guard','defend','swap','flee']}
 };
 const H = () => HEROES[S.hero];
-const BUILT = ['kael', 'ilsa', 'tamsin'];
+const BUILT = ['kael', 'ilsa', 'tamsin', 'wren'];
 const XP_AT = [0, 0, 80, 200, 380, 600, 860];
 const nextXP = l => XP_AT[l + 1] || (860 + (l - 5) * 300);
 function sk(id){ return S.pc.skills[id] || 0; }
@@ -111,15 +111,17 @@ function pcMax(){
   const k = S.pc;
   if (S.hero === 'ilsa') return 16 + k.attrs.endur * 4 + sk('tough') * 5 + (S.level - 1) * 5;
   if (S.hero === 'tamsin') return 22 + k.attrs.endur * 4 + sk('tough') * 5 + (S.level - 1) * 6;
+  if (S.hero === 'wren') return 18 + k.attrs.endur * 4 + sk('tough') * 5 + (S.level - 1) * 5;
   return 22 + k.attrs.endur * 4 + sk('tough') * 5 + (S.level - 1) * 6;
 }
 function allyMax(){ return ALLIES[S.ally.id].max(); }
 function pcArmor(){ const stone = S.hero === 'tamsin' ? (S.level >= 4 ? 2 : 1) : 0; return (S.hero === 'kael' ? 1 : 0) + stone + Math.ceil(sk('armor') / 2) + S.gear.armor; }
-function pcAcc(){ const g = S.pc.attrs.grace; if (S.hero === 'tamsin') return 64 + g * 3 + sk('maces') * 4; return S.hero === 'ilsa' ? 60 + g * 3 + sk('daggers') * 4 : 66 + g * 3 + sk('blades') * 3; }
+function pcAcc(){ const g = S.pc.attrs.grace; if (S.hero === 'tamsin') return 64 + g * 3 + sk('maces') * 4; if (S.hero === 'wren') return 62 + g * 3 + sk('daggers') * 4; return S.hero === 'ilsa' ? 60 + g * 3 + sk('daggers') * 4 : 66 + g * 3 + sk('blades') * 3; }
 function pcDmg(){
   const m = S.pc.attrs.might;
   if (S.hero === 'ilsa'){ const b = m + sk('daggers') + S.gear.sword; return [2 + b, 4 + b]; }
   if (S.hero === 'tamsin'){ const b = m + sk('maces') + S.gear.sword; return [3 + b, 6 + b]; }
+  if (S.hero === 'wren'){ const b = m + sk('daggers') + S.gear.sword; return [2 + b, 5 + b]; }
   const b = m + sk('blades') + S.gear.sword; return [3 + b, 6 + b];
 }
 function pcBlock(){ return sk('shields') * 6; }
