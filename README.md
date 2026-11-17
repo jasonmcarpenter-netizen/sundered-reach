@@ -2,7 +2,7 @@
 
 A turn-based, story-driven browser RPG in the Spiderweb Software tradition. Four strangers each see one symptom of a dying world, and only together can they see the whole disease.
 
-**Play:** open `index.html` through any static web server, or use the GitHub Pages link once Pages is turned on.
+**Play:** https://jasonmcarpenter-netizen.github.io/sundered-reach/ (GitHub Pages, deployed from `main`), or open `index.html` through any static web server.
 
 **Run locally:**
 ```
