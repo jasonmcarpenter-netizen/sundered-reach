@@ -90,6 +90,7 @@ function tick(u){
   if (st.laststand && --st.laststand <= 0) delete st.laststand;
   if (st.guard && --st.guard <= 0) delete st.guard;
   if (st.taunt && --st.taunt <= 0) delete st.taunt;
+  if (st.steady && --st.steady <= 0) delete st.steady;
 }
 function step(){
   if (checkEnd()) return;
@@ -137,7 +138,13 @@ function strike(u, t, o){
   applyDmg(t, d);
   return true;
 }
-function breakWind(t){ if (t.winding){ t.winding = false; log(`${t.name} is stunned, and the ${t.spec.name} is broken off.`); } else log(`${t.name} is stunned.`); }
+// Party fights only: four heroes could chain stuns on one enemy forever, so a stunned enemy shrugs off further
+// stuns (and keeps its wind-up) for its next few turns. Solo fights are unchanged.
+function breakWind(t){
+  if (C.party && t.side === 'enemy' && t.st.steady){ delete t.st.stun; log(`${t.name} shrugs it off.`); return; }
+  if (t.winding){ t.winding = false; log(`${t.name} is stunned, and the ${t.spec.name} is broken off.`); } else log(`${t.name} is stunned.`);
+  if (C.party && t.side === 'enemy') t.st.steady = 3;
+}
 const isPc = (u, hero) => u.hero === hero;
 const isAlly = (u, id) => u.allyId === id;
 const front = u => u.row === 'front';

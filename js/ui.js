@@ -101,6 +101,7 @@ function unitCard(u){
   if (st.laststand) chips.push(['Last Stand', 'good']);
   if (st.hidden) chips.push(['Vanished', 'good']);
   if (st.poised) chips.push(['Sure strike', 'good']);
+  if (st.steady) chips.push(['Steady: can’t be stunned', 'grey']);
   let intent = null;
   if (u.side === 'enemy' && u.hp > 0) intent = u.winding ? h('div', {class:'intent warn'}, `Readying ${u.spec.name}! ${u.spec.aoe ? 'Hits everyone. Defend or Ward.' : 'Defend or stun it.'}`) : h('div', {class:'intent'}, u.ranged ? 'Ranged attacks' : 'Melee attacks');
   const body = [

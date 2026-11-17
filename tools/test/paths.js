@@ -302,7 +302,7 @@
     ok(partyReady(), 'not ready after every chapter 3');
     const pre = partyStep(); notes.push('card before: ' + pre.kind);
     const gold0 = PARTY.reduce((n, id) => n + (M.heroes[id].gold || 0), 0), xp0 = PARTY.map(id => M.heroes[id].xp);
-    HEROES.party.chapters[1] = {title:'Party test', start:'zz_party'};
+    const realCh1 = HEROES.party.chapters[1]; HEROES.party.chapters[1] = {title:'Party test', start:'zz_party'};
     SCENES.zz_party = {view: () => ({title:'Party test', text:['Four heroes in one place.'], choices:[{label:'Fight together', act: () => startCombat('zz_party')}, partyRest(), Object.assign({label:'Lore check', act: () => {}}, chk('lore', 1)), Object.assign({label:'Ilsa check', act: () => {}}, chkBy('ilsa', 'arcane', 1))].filter(Boolean)})};
     SCENES.zz_partyWin = {view: () => ({title:'Won', text:['Done.'], choices:[{label:'Finish the test', act: () => { S.mode = 'end'; save(); render(true); }}]})};
     COMBATS.zz_party = {title:'Party test', enemies:() => ['shardbound', 'sarneguard', 'sarneguard', 'inkwraith', 'voss', 'hale'], lethal:true, win:'zz_partyWin', back:'zz_party', intro:'A test fight.'};
@@ -339,10 +339,56 @@
       beginHero('kael'); ok(S === M.heroes.kael && document.querySelector('.end'), 'switching back to Kael failed');
       notes.push('sheet, save/reload, restart and switch: ok');
     } finally {
-      delete HEROES.party.chapters[1]; delete SCENES.zz_party; delete SCENES.zz_partyWin; delete COMBATS.zz_party;
+      if (realCh1) HEROES.party.chapters[1] = realCh1; else delete HEROES.party.chapters[1]; delete SCENES.zz_party; delete SCENES.zz_partyWin; delete COMBATS.zz_party;
       delete M.party; if (M.cur === 'party') M.cur = 'kael';
     }
     return notes;
+  };
+  // ---- Act 2 (party) ----
+  // How the bot builds each hero (utility skills first, like a player), for the party route and party sims
+  const HERO_BUILD = {kael:[['leadership','lore','lockpick','survival'], ['blades','tough']], ilsa:[['lore','lockpick','leadership','stealth'], ['arcane','spellcraft']],
+    tamsin:[['divine','leadership','maces','survival'], ['divine','maces']], wren:[['lockpick','lore','leadership','stealth'], ['bows','tough']]};
+  B.spendParty = () => { M.party.members.forEach(id => asHeroState(id, () => B.spendAll(HERO_BUILD[id][1]))); };
+  B.party1 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const st = partyStep(); if (st.kind !== 'start') throw new Error('Act 2 not startable: ' + JSON.stringify(st));
+    screen = 'select'; render(true);
+    [...document.querySelectorAll('.hero.party .btn')].find(b => /Begin Act 2/.test(b.textContent)).click();
+    notes.push('levels ' + PARTY.map(id => HEROES[id].name + ' ' + M.heroes[id].level).join(', ') + ', gold ' + S.gold);
+    B.ch('Kael'); B.ch('Ilsa'); B.ch('Tamsin'); B.ch('Wren'); B.ch('Down into');
+    grab(); B.ch(o.trust === 'wren' ? 'Wren lowers' : 'Kael lowers');
+    grab(); B.ch(o.shown === 'tamsin' ? 'Tamsin shows' : 'Ilsa shows');
+    B.ch('Fight together'); await fight(); notes.push('freed ' + S.flags.squareFreed);
+    B.ch(o.base === 'hostel' ? 'Pilgrims' : 'Gull’s Rest');
+    for (const who of ['Hask', 'Bracken', 'Tobin']){ B.visit('a21_base'); B.ch(who); B.ch('Back'); }
+    B.spendParty();
+    B.visit('a21_court'); grab(); notes.push('crown ' + crownStanding() + ' ' + crownMood()); B.ch('Back');
+    if (o.town){
+      B.visit('a21_townhouse');
+      if (o.town === 'fight' || !(B.has('Read the marks') || B.has('Slip into'))){ B.ch('Go over the wall'); await fight(); }
+      else B.ch(B.has('Read the marks') ? 'Read the marks' : 'Slip into');
+      B.ch('Back'); notes.push('lead ' + S.flags.sarneLead);
+    }
+    if (o.cache){ B.visit('a21_base'); B.rest(); if (S.mode === 'scene') B.ch('Back'); B.visit('a21_cache'); B.ch('Go in'); await fight(); B.ch('Back'); }
+    B.spendParty();
+    B.visit('a21_base'); B.rest(); if (S.mode === 'scene') B.ch('Back');
+    B.visit('a21_under');
+    if (o.ward) B.ch(o.ward === 'wren' ? 'Wren puts' : 'Kael puts');
+    notes.push('boss at ' + PARTY.map(id => M.heroes[id].level).join('/')); B.ch('Stop him'); await fight();
+    B.ch('Decide together'); B.ch(o.pillar === 'watched' ? 'Keep it secret' : 'Report it'); B.ch('Continue'); B.ch('End of Act 2');
+    return notes;
+  };
+  // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies
+  B.psim = function(xp, combatId, n, flags, gear){
+    M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null, wren:null}}; S = null; C = null;
+    PARTY.forEach(id => { beginHero(id, true); B.spend(HERO_BUILD[id][0]); gainXP(xp); B.spendAll(HERO_BUILD[id][1]);
+      if (id === 'ilsa') S.flags.word = true; if (id === 'kael') S.gear.armor = 2; if (id === 'wren'){ S.gear.bow = 2; S.gear.armor = 1; }
+      restAll(); S.chapter = 3; S.mode = 'end'; });
+    M.party = partyState(); Object.assign(M.party.items, {draught:4, tonic:2, aether:2}); Object.assign(M.party.flags, flags || {});
+    M.cur = 'party'; S = M.party; save();
+    let wins = 0, rounds = 0;
+    for (let i = 0; i < n; i++){ const t = B.trial(combatId); if (t.r === 'win') wins++; rounds += t.rounds; }
+    return `party L${M.heroes.kael.level} ${combatId}${flags ? ' ' + JSON.stringify(flags) : ''}: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%), avg ${Math.round(rounds / n)} rounds`;
   };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
@@ -374,6 +420,7 @@
       if (hasChapter('tamsin', 3)) { M.heroes.ilsa.flags.aurelSent = true; save(); }
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({calm:true, rite:'aurel'})).join(' | '));
       lines.push('     party engine: ' + (await B.partyTest()).join(' | '));
+      if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'wren', shown:'ilsa', base:'gull', town:'fight', cache:true, ward:'wren', pillar:'watched'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -387,6 +434,7 @@
       if (hasChapter('wren', 3)) lines.push('     wren3: ' + (await B.wren3({quell:'pay', barge:'crown'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({rite:'saved', slow:true})).join(' | '));
+      if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'kael', shown:'tamsin', base:'hostel', pillar:'told'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -423,6 +471,11 @@
       S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
       lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Act 2 ch1: party fights at the levels players reach (level 8–9; the hostile route arrives higher)
+    if (COMBATS.a21_boss){
+      lines.push(B.psim(1460, 'a21_square', n));
+      for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}]]) lines.push(B.psim(xp, 'a21_boss', n, f));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){
