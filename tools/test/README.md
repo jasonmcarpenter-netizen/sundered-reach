@@ -6,7 +6,7 @@ logic against a stand-in database. Nothing here is loaded by the game itself.
 | File | What it does |
 |---|---|
 | `bot.js` | The bot: picks choices by label and clicks the real buttons, visits map spots, spends skill points, fights with a simple per-hero tactic, and records errors. Makes combat run synchronously. |
-| `paths.js` | Scripted routes through each chapter (`BOT.kael`, `BOT.ilsa`, `BOT.tamsin`, `BOT.wren`, `BOT.ilsa2`, `BOT.tamsin2`, `BOT.kael2`, `BOT.wren2`, `BOT.ilsa3`, `BOT.kael3`), the boss simulator (`BOT.sim`), and `BOT.suite()`, the standard check. |
+| `paths.js` | Scripted routes through each chapter (`BOT.kael`, `BOT.ilsa`, `BOT.tamsin`, `BOT.wren`, `BOT.ilsa2`, `BOT.tamsin2`, `BOT.kael2`, `BOT.wren2`, `BOT.ilsa3`, `BOT.kael3`, `BOT.tamsin3`), the boss simulator (`BOT.sim`), and `BOT.suite()`, the standard check. |
 | `mocktest.html` | The game with a fake in-memory Firebase, for testing sign-in and sync without a Google account. |
 
 ## Run the standard check

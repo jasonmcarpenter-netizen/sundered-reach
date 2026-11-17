@@ -236,6 +236,32 @@
     B.ch('Decide'); B.ch(o.magister === 'crown' ? 'Give him to the Crown' : 'Go home, Magister'); B.ch('Continue'); B.ch('End of chapter 3');
     return notes;
   };
+  B.tamsin3 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('tamsin'); const st = nextStep('tamsin'); if (st.kind !== 'next' || st.n !== 3) throw new Error('tamsin ch3 not available: ' + JSON.stringify(st));
+    beginChapter(3); notes.push('start level ' + S.level); grab();
+    B.ch('Into the Lantern');
+    B.visit('t3_infirmary'); grab(); B.ch('Back');
+    B.visit('t3_nave');
+    if (o.calm && B.has('altar steps')) B.ch('altar steps'); else B.ch(B.has('Use the chaos') ? 'Use the chaos' : 'Note');
+    B.ch('Back');
+    B.visit('t3_archive');
+    const ways = ['Go down with Brother Ivo', 'Follow Brother Ivo', 'Ask Brother Ivo again', 'bell-ringers', 'ossuary'];
+    B.ch(ways.find(w => B.has(w))); notes.push('archive via ' + S.flags.archiveHow);
+    B.ch('Into the archive');
+    B.visit('t3_stacks'); B.ch('Fight'); await fight(); B.ch('Back');
+    B.spendAll(['divine','maces']); restAt('t3_lamp');
+    B.visit('t3_reading');
+    B.ch(B.has('Look it up') ? 'Look it up' : (!o.slow && B.has('Search the catalogue')) ? 'Search the catalogue' : 'Pull books'); B.ch('Back');
+    B.spendAll(['divine','maces']); restAt('t3_lamp');
+    B.visit('t3_vault'); notes.push('boss at level ' + S.level); B.ch('Stop him'); await fight();
+    B.ch('Decide');
+    const pick = {aurel:'Light the Second', saved: B.has('Save the rite') ? 'Save the rite' : 'Save the book', ivo:'Go back for'}[o.rite];
+    B.ch(B.has(pick) ? pick : (B.has('Save the rite') ? 'Save the rite' : 'Save the book'));
+    notes.push('rite ' + S.flags.rite);
+    B.ch('Continue'); B.ch('End of chapter 3');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -261,6 +287,9 @@
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({gate:'guest', quiver:true, fragment:'kept'})).join(' | '));
       if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({magister:'home'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({gate:'water', water:'force', cart:true, yardFight:true, hoard:'exposed'})).join(' | '));
+      // The bot's Ilsa never carries Aurel, so put him at the Cathedral here to exercise Tamsin's cure path
+      if (hasChapter('tamsin', 3)) { M.heroes.ilsa.flags.aurelSent = true; save(); }
+      if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({calm:true, rite:'aurel'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -272,6 +301,7 @@
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({glade:false, fragment:'crown'})).join(' | '));
       if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({postFight:true, magister:'crown'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
+      if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({rite:'saved', slow:true})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -308,6 +338,15 @@
       S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
       lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Tamsin ch3: Saul at levels 7–8, for Kael's hoard choice; slow find adds an ink-wraith
+    if (COMBATS.t3_boss) for (const [hoard, late, xp] of [[null, false, 1160], ['exposed', false, 1160], ['quiet', false, 1160], ['quiet', true, 1160], [null, false, 1460]]){
+      M = {v:2, cur:null, heroes:{kael: hoard ? {flags:{hoard}, level:1} : null, ilsa:null, tamsin:null, wren:null}}; S = null;
+      beginHero('tamsin'); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['divine','leadership','maces','survival']); gainXP(xp); B.spendAll(['divine','maces']); restAll();
+      S.flags.lateFind = late; S.items.draught = 3; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('t3_boss').r === 'win') wins++;
+      lines.push(`(Kael's hoard ${hoard || 'not yet'}${late ? ', slow find' : ''}) tamsin L${S.level} t3_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     // Ilsa ch3: Hale at levels 7–8; hid the pages or reported; read his notes; Marrow's riders (Wren gave the fragment)
     if (COMBATS.i3_boss) for (const [choice, lore, escort, xp] of [['hide', true, false, 1460], ['hide', false, false, 1160], ['report', true, false, 1160], ['report', true, true, 1160]]){
