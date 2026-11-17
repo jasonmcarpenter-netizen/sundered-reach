@@ -20,9 +20,11 @@ A turn-based, story-heavy browser RPG in the Spiderweb Software tradition (Avern
 - **Solo fights are built around the hero's role.** For example, Tamsin wins by stalling and warding, not brawling.
 
 ## Where the build is
-- **Done:** Act 1 opening chapters for **Kael** (Varrow arena, frame-up, escape, the Grey Warden), **Ilsa** (Arcanum, forbidden text, vault, Proctor Graff) and **Tamsin** (Kell's Rest, grey sickness, evacuate-or-defend, companion Bracken). Hero select, cross-hero echoes, journal, character sheet and saves all work.
-- **Next:** Wren's opening chapter in the Thornwood (sealed crate, the sell-or-keep-the-key choice, a Free Companies vibe). After that, wire Wren's echoes into the other three, add her to `BUILT` in `js/core.js`, and turn her "coming soon" card on hero select (`js/ui.js`) into a playable one.
-- **Still open:** names for the Ashen Hand leaders and major NPCs.
+- **Done:** Act 1 opening chapters for all four heroes: **Kael** (Varrow arena, frame-up, escape, the Grey Warden), **Ilsa** (Arcanum, forbidden text, vault, Proctor Graff), **Tamsin** (Kell's Rest, grey sickness, evacuate-or-defend, companion Bracken) and **Wren** (Gallows Ford, Quell's sealed crate, Steward Voss's offer, companion Tobin, Sable at the old waystation, sell-or-keep-the-key). Hero select, cross-hero echoes, journal, character sheet and saves all work.
+- **Wren's links:** reads Kael's Dario outcome (spared ally → Dario's servant warns her about Voss; killed → Sarne ambush on the deer trail), Ilsa's report/hide (Crown patrol: bluff with no skill check, or an extra soldier and no bluff) and ledger (Voss), Tamsin's Orrin (freed → one fewer cultist at the boss). Writes `key` ('sold'/'kept'), `opened`, `patrolHow`, `parentHint`, `bossDone`, echoed into the other three endings.
+- **Next:** Act 2, when the four meet in Corvane.
+- **Still open:** names for the Ashen Hand leaders and major NPCs. Wren's chapter uses placeholders: Mother Quell, Tobin Marsh, Nell Kestrel, Pike, Old Nan and Sable, Mother of Thorns.
+- **Balance note (bot sim, 100 runs, first-try boss wins on the shortest and a typical path):** Kael 10% / 71%, Wren 14% / 82%, Ilsa ~90%, Tamsin ~94%. Ilsa's and Tamsin's bosses rarely need a retry.
 
 ## Code layout
 These are plain `<script>` files that share one global scope, and **load order matters** (see `index.html`):
@@ -37,6 +39,7 @@ These are plain `<script>` files that share one global scope, and **load order m
 | `js/ui.js` | Rendering, modals (sheet, journal, menu), title, hero select and chapter end. |
 | `js/saves.js` | Save codes and cloud sync. |
 | `js/heroes/tamsin.js` | Tamsin's chapter, her skills and actions, Bracken, and her echoes into Kael and Ilsa. |
+| `js/heroes/wren.js` | Wren's chapter, Bows, her actions (Vanish sets `st.hidden` and `st.poised`, handled in `combat.js`), Tobin, and her echoes into the other three. Loads after `tamsin.js`. |
 | `js/main.js` | Start-up. |
 
 Scene shape: `{ enter?(), view() -> {title, text:[html], choices:[{label, go?, act?, req?, tag?}]} }`. Text starting with `@echo:` renders as a cross-hero echo box. Each hero's scene IDs use a prefix (Ilsa's start with `i_`, Tamsin's with `t_`), so new heroes need their own prefix too (Wren's would be `w_`).

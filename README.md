@@ -10,7 +10,7 @@ python3 -m http.server
 # then open http://localhost:8000
 ```
 
-**Built so far:** opening chapters for Kael, Ilsa and Tamsin. Wren is next.
+**Built so far:** opening chapters for all four heroes: Kael, Ilsa, Tamsin and Wren. Act 2 is next.
 
 **Moving your save:** in the old version, open Menu → save code and copy it. In this version, choose "Use a save code" on the title screen and paste it.
 
