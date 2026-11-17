@@ -22,7 +22,12 @@ A turn-based, story-heavy browser RPG in the Spiderweb Software tradition (Avern
 ## Where the build is
 - **Done:** Act 1 opening chapters for all four heroes: **Kael** (Varrow arena, frame-up, escape, the Grey Warden), **Ilsa** (Arcanum, forbidden text, vault, Proctor Graff), **Tamsin** (Kell's Rest, grey sickness, evacuate-or-defend, companion Bracken) and **Wren** (Gallows Ford, Quell's sealed crate, Steward Voss's offer, companion Tobin, Sable at the old waystation, sell-or-keep-the-key). Hero select, cross-hero echoes, journal, character sheet and saves all work.
 - **Wren's links:** reads Kael's Dario outcome (spared ally → Dario's servant warns her about Voss; killed → Sarne ambush on the deer trail), Ilsa's report/hide (Crown patrol: bluff with no skill check, or an extra soldier and no bluff) and ledger (Voss), Tamsin's Orrin (freed → one fewer cultist at the boss). Writes `key` ('sold'/'kept'), `opened`, `patrolHow`, `parentHint`, `bossDone`, echoed into the other three endings.
-- **Next:** Act 2, when the four meet in Corvane.
+- **Act 1 roadmap (approved; also in the design doc's "Act 1 Roadmap" section):** three chapters per hero. Chapter 1 is the built opening; chapter 2 is the road toward Corvane; chapter 3 is getting into the capital.
+  - Kael: 2 *The Salt Road* (Heartland farms, a Free Companies bounty crew, bigger if he killed Dario); 3 *The Gate of Corvane* (Ilsa's report/hide → Crown soldiers help or hunt him; his choice about the bounty captain echoes into Wren's ch3).
+  - Ilsa: 2 *Kell's Rest* (Tamsin's evacuate → empty village and dark shrine; defend → grieving village, intact shrine, Elder Durra as ally; using the Unwritten Word on the Fourth Ward echoes to Tamsin); 3 *The Pass* (Arcanum hunters, more if she hid the pages).
+  - Tamsin: 2 *The Pass Road* (with the villagers or alone after twelve days; a Lantern Order waystation; backing the Order's warners or order-keepers); 3 *The Lantern Cathedral* (the archive and the first clue to the cure; can treat Aurel if Ilsa carried him).
+  - Wren: 2 *The Enclaves* (her father's sign, a Sylvari enclave, Envoy Lysa Marrow and Quell's people after the fragment; give it up or keep it); 3 *The River* (by barge into Corvane; Kael's bounty crew as allies or rivals).
+- **Next:** Ilsa's chapter 2 (the pilot for the chapter system), then the other chapter 2s, then the chapter 3s. Each gets a short outline for approval first. Act 2 (the four meet in Corvane) comes after.
 - **Named so far (keep these):** Act 1 NPCs as written in each chapter. Wren's are Mother Quell (Gallows Ford broker), Tobin Marsh (companion), Nell Kestrel (rival archer), Pike (fence), Old Nan (cook tent) and Sable, Mother of Thorns (Ashen Hand leader in the Thornwood, alongside Velka, the Ashen Voice, in Hearthdeep).
 - **Still open:** names for the Ashen Hand's top leadership and the Act 2 NPCs in Corvane.
 - **Balance note (bot sim, 100 runs, first-try boss wins on the shortest and a typical path):** Kael 10% / 71%, Wren 14% / 82%, Ilsa ~90%, Tamsin ~94%. Ilsa's and Tamsin's bosses rarely need a retry.
@@ -35,21 +40,26 @@ These are plain `<script>` files that share one global scope, and **load order m
 | `js/cloudsave.js` | `CloudSave`: online saves through Firebase (Google sign-in, Firestore doc `saves/{uid}`). Signed out, or if Firebase can't load, the game saves to `localStorage` only (status `'signedout'` or `'local'`). Same interface as before (`connect`, `pull`, `push`, `flush`, `clear`, `ready`, `status`, `label`, `onStatus`) plus `signIn`, `signOut`, `onSignIn`, `canSignIn` and `canSignOut`. Also has the save-code helpers. |
 | `js/firebase.js` | Loads the Firebase SDK (pinned 10.12.2 from gstatic) as an ES module **after** the plain scripts, holds the project config, and exposes `window.SR_FIREBASE` for `cloudsave.js`. The web config is public by design; the security comes from `firestore.rules`. |
 | `js/core.js` | Save state (`M` is the whole save, `S` the active hero, `C` combat), helpers (`h()` for DOM), rules (`ATTRS`, `SKILLS`, `HEROES`, `ALLIES`, `BUILT`, XP table) and `save()`. |
-| `js/heroes/kael.js` | The base `SCENES`, `MAPS`, `ENEMIES` and `COMBATS` (Kael's), plus the Kael and Ilsa echoes. |
-| `js/heroes/ilsa.js` | Ilsa's chapter, added with `Object.assign` into the shared tables. |
+| `js/heroes/kael/ch1.js` | The base `SCENES`, `MAPS`, `ENEMIES` and `COMBATS` (Kael's), plus the Kael and Ilsa echoes. |
+| `js/heroes/ilsa/ch1.js` | Ilsa's chapter 1, added with `Object.assign` into the shared tables. |
 | `js/combat.js` | Navigation (`go`, `toMap`) and the combat engine: `ACTIONS`, `ITEMS`, enemy AI, retry and step-back. |
 | `js/ui.js` | Rendering, modals (sheet, journal, menu), title, hero select and chapter end. |
 | `js/saves.js` | Save codes, cloud sync (`syncFromCloud`: the newer of the online and local saves wins, by `savedAt`) and `cloudBox()`, the status line with the "Sign in to sync" / "Sign out" button on the title screen and in the menu. |
-| `js/heroes/tamsin.js` | Tamsin's chapter, her skills and actions, Bracken, and her echoes into Kael and Ilsa. |
-| `js/heroes/wren.js` | Wren's chapter, Bows, her actions (Vanish sets `st.hidden` and `st.poised`, handled in `combat.js`), Tobin, and her echoes into the other three. Loads after `tamsin.js`. |
+| `js/heroes/tamsin/ch1.js` | Tamsin's chapter 1, her skills and actions, Bracken, and her echoes into Kael and Ilsa. |
+| `js/heroes/wren/ch1.js` | Wren's chapter 1, Bows, her actions (Vanish sets `st.hidden` and `st.poised`, handled in `combat.js`), Tobin, and her echoes into the other three. Loads after Tamsin's. |
+| `js/chapters.js` | The chapter system: `HEROES[id].chapters` (`{n:{title, start}}`), `chapterOf`, `chaptersDone`, `chapterLock` (no hero more than one chapter ahead: chapter n needs every other hero to have finished n − 2), `catchUp` (a hero more than 2 levels behind the leader is brought to 2 below at each chapter start), `beginChapter`, `restartChapter` and `nextStep` (what the select and chapter-end screens offer). |
+| `js/heroes/<hero>/ch2.js`, `ch3.js` | Later chapters. Each loads after `chapters.js`, registers `HEROES.<hero>.chapters[n] = {title, start}`, and adds its scenes, maps, enemies and combats. |
 | `js/main.js` | Start-up. |
 
 Scene shape: `{ enter?(), view() -> {title, text:[html], choices:[{label, go?, act?, req?, tag?}]} }`. Text starting with `@echo:` renders as a cross-hero echo box. Each hero's scene IDs use a prefix (Ilsa's start with `i_`, Tamsin's with `t_`), so new heroes need their own prefix too (Wren's would be `w_`).
 
-**New hero pattern:** create `js/heroes/<name>.js` and load it after `saves.js` and before `main.js`. In it, add the hero to `HEROES` and `Object.assign` scenes, maps, enemies, combats and any new skills or actions. Define `HEROES.<name>.echoes`, then wrap the other heroes' echo functions the way `tamsin.js` does.
+**New chapter pattern:** create `js/heroes/<hero>/ch<n>.js`, load it after `chapters.js` and before `main.js`, and register `HEROES.<hero>.chapters[n]`. Scene IDs keep the hero's prefix plus the chapter (`i2_` for Ilsa's chapter 2). A chapter ends the same way chapter 1 does: set `S.mode = 'end'`, `save()`, `render(true)`. The level, gear, items, companion, quests and flags carry over; flags from a later chapter add to the same `S.flags`, so echo functions can keep reading them.
+
+**New hero pattern:** create `js/heroes/<name>/ch1.js` and load it after `saves.js` and before `chapters.js`. In it, add the hero to `HEROES` and `Object.assign` scenes, maps, enemies, combats and any new skills or actions. Define `HEROES.<name>.echoes`, then wrap the other heroes' echo functions the way `tamsin.js` does.
 
 ## Saves (don't break them)
 - Save key: `sundered-reach-v2`. The save shape is `{v, cur, heroes:{kael, ilsa, tamsin, …}}`.
+- Each hero's state has `chapter` (missing in older saves, which means 1) and, from chapter 2 on, `chapterSnap`: a JSON copy of the state at that chapter's start, used by "Restart chapter".
 - Never rename or remove saved fields. If the shape has to change, add a migration (see how `OLD_KEY` is handled) and bump the key only as a last resort.
 - Players can move progress between devices or hosts with **Menu → save code**.
 - **Cloud saves:** signing in with Google syncs the whole save `{v, cur, heroes, savedAt}` to Firestore at `saves/{uid}` as `{json, savedAt, v}`. `localStorage` is always written too, so signed-out play works fully. On start-up and on every sign-in, `syncFromCloud` keeps whichever save has the newer `savedAt` and uploads the local one if it's newer. "Erase and start over" also deletes the online save.
