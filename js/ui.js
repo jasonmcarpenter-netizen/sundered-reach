@@ -6,16 +6,18 @@ function render(scrollTop){
   else if (S.mode === 'end') renderEnd();
   else {
     app.append(renderTop());
-    if (S.mode === 'scene') renderScene();
+    // A finished fight stays on screen (result, XP, Continue) until leaveCombat clears C,
+    // even though endCombat has already moved S.mode on so a reload resumes after the fight.
+    if (C) renderCombat();
+    else if (S.mode === 'scene') renderScene();
     else if (S.mode === 'map') renderMap();
-    else if (S.mode === 'combat' && C) renderCombat();
   }
   if (scrollTop) window.scrollTo(0, 0);
 }
 function bar(cur, max, cls){ const p = max ? clamp(cur / max, 0, 1) : 0; return h('div', {class:'bar' + (cls ? ' ' + cls : '') + (!cls && p < 0.3 ? ' low' : '')}, h('i', {style:`width:${(p * 100).toFixed(1)}%`})); }
 function renderTop(){
-  const inCombat = S.mode === 'combat' && C;
-  const p = inCombat ? U('pc') : null;
+  const inCombat = !!C;
+  const p = inCombat && !C.over ? U('pc') : null; // once a fight is over, show the saved (post-fight, post-level-up) values
   const hp = p ? p.hp : S.pc.hp, max = p ? p.max : pcMax();
   const sp = p ? p.sp : S.pc.sp, spm = spMax();
   const prev = XP_AT[S.level] || 0, nxt = nextXP(S.level);
@@ -290,10 +292,13 @@ function beginHero(id, fresh){
     S = ({kael:kaelState, ilsa:ilsaState, tamsin:tamsinState})[id]();
     M.heroes[id] = S;
     S.pc.hp = pcMax(); S.pc.sp = spMax();
+    if (S.ally.joined) S.ally.hp = allyMax(); // Tamsin starts with Bracken already at her side
     go(HEROES[id].start);
     return;
   }
   S = M.heroes[id];
+  // Saves made before the line above have Bracken at 0 health; a living companion is never saved at 0
+  if (S.ally && S.ally.joined && !S.ally.hp) S.ally.hp = allyMax();
   if (S.mode === 'combat' && S.combatId) startCombat(S.combatId);
   else { if (S.mode === 'combat') S.mode = 'map'; save(); render(true); }
 }
