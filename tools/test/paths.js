@@ -211,6 +211,31 @@
     B.ch('Decide'); B.ch(o.hoard === 'quiet' ? 'Keep it quiet' : 'Expose it'); B.ch('Continue'); B.ch('End of chapter 3');
     return notes;
   };
+  B.ilsa3 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('ilsa'); const st = nextStep('ilsa'); if (st.kind !== 'next' || st.n !== 3) throw new Error('ilsa ch3 not available: ' + JSON.stringify(st));
+    beginChapter(3); notes.push('start level ' + S.level);
+    B.ch('Up the pass');
+    B.visit('i3_snow'); B.ch('Fight'); await fight(); B.ch('Back');
+    B.spendAll(['arcane','spellcraft']); restAt('i3_camp');
+    B.visit('i3_chapel'); grab();
+    if (B.has('Sit with her')) B.ch('Sit with her'); else if (B.has('Read her notebook')) B.ch('Read her notebook'); else B.ch('Close her eyes');
+    B.ch('Back');
+    B.visit('i3_post'); grab();
+    if (B.has('Marrow’s riders')) { B.ch('Marrow’s riders'); B.ch('Back'); }
+    else if (B.has('Thank him')) { B.ch('Thank him'); B.ch('Back'); }
+    else if (!o.postFight && B.has('lip round')) { B.ch('lip round'); B.ch('Back'); }
+    else { B.ch('Break through'); await fight(); B.ch('Back'); }
+    notes.push('post: ' + S.flags.postHow);
+    B.spendAll(['arcane','spellcraft']);
+    B.visit('i3_descend'); B.ch('Down to Saint');
+    B.visit('i3_rest'); grab(); B.rest(); if (S.mode === 'scene') B.ch('Back');
+    B.visit('i3_wood'); B.ch(B.has('Read the Magister') ? 'Read the Magister' : 'Burn the packs'); B.ch('Back');
+    B.spendAll(['arcane','spellcraft']); restAt('i3_rest');
+    B.visit('i3_bridge'); notes.push('boss at level ' + S.level); B.ch('Fight Magister'); await fight();
+    B.ch('Decide'); B.ch(o.magister === 'crown' ? 'Give him to the Crown' : 'Go home, Magister'); B.ch('Continue'); B.ch('End of chapter 3');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -234,6 +259,7 @@
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'argue', order:'warners'});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({farm:'talk', prep:'strings', captain:'freed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({gate:'guest', quiver:true, fragment:'kept'})).join(' | '));
+      if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({magister:'home'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({gate:'water', water:'force', cart:true, yardFight:true, hoard:'exposed'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
@@ -244,6 +270,7 @@
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'fight', order:'keepers', chapel:false});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({haul:true, pit:false, captain:'handed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({glade:false, fragment:'crown'})).join(' | '));
+      if (hasChapter('ilsa', 3)) lines.push('     ilsa3: ' + (await B.ilsa3({postFight:true, magister:'crown'})).join(' | '));
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
@@ -281,6 +308,14 @@
       S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
       lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Ilsa ch3: Hale at levels 7–8; hid the pages or reported; read his notes; Marrow's riders (Wren gave the fragment)
+    if (COMBATS.i3_boss) for (const [choice, lore, escort, xp] of [['hide', true, false, 1460], ['hide', false, false, 1160], ['report', true, false, 1160], ['report', true, true, 1160]]){
+      M = null; S = null; beginHero('ilsa', true); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['lore','lockpick','leadership','stealth']); gainXP(xp); B.spendAll(['arcane','spellcraft']); restAll();
+      Object.assign(S.flags, {word:true, choice, leashLore:lore, escort}); S.items.draught = 3; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('i3_boss').r === 'win') wins++;
+      lines.push(`(${choice === 'hide' ? 'hid the pages' : 'reported'}${lore ? ', read his notes' : ''}${escort ? ', Marrow’s riders' : ''}) ilsa L${S.level} i3_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     // Kael ch3: Voss at levels 7–8, for each of Wren's barge outcomes (her ch3 writes `barge`)
     if (COMBATS.k3_boss) for (const [barge, xp] of [[null, 1160], ['sunk', 1160], ['crown', 1160], [null, 1460]]){
