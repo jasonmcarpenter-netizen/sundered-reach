@@ -108,7 +108,7 @@
       if (C.phase === 'over'){
         const o = C.over;
         if (o.result === 'lose' && C.def.lethal){
-          if (tries > (maxRetries == null ? 15 : maxRetries)) fail(`lost ${id} ${tries} times`);
+          if (tries > (maxRetries == null ? 30 : maxRetries)) fail(`lost ${id} ${tries} times`);
           tries++; retryCombat(); continue;
         }
         rounds = C.round;

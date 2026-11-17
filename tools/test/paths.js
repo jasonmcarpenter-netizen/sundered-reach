@@ -180,6 +180,37 @@
     B.ch('Hear them out'); B.ch(o.fragment === 'kept' ? 'Keep it' : 'Give the fragment'); B.ch('Continue'); B.ch('End of chapter 2');
     return notes;
   };
+  B.kael3 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('kael'); const st = nextStep('kael'); if (st.kind !== 'next' || st.n !== 3) throw new Error('kael ch3 not available: ' + JSON.stringify(st));
+    beginChapter(3); notes.push('start level ' + S.level); grab();
+    B.ch('Into the fever');
+    B.visit('k3_tents'); B.ch('Deal'); await fight(); B.ch('Back');
+    B.spendAll(['blades','tough']); restAt('k3_camp');
+    B.visit('k3_watch'); grab();
+    if (o.gate !== 'water' && B.has('Marrow’s sergeant')) B.ch('Marrow’s sergeant');
+    else if (o.gate !== 'water' && B.has('sealed bounty contract')) B.ch('sealed bounty contract');
+    else {
+      B.ch('Back'); B.visit('k3_water');
+      if (o.water === 'force') { B.ch('by force'); await fight(); B.ch('Into the city'); }
+      else B.ch(B.has('Iron Tally’s barge') ? 'Iron Tally’s barge' : B.has('pick the grate') ? 'pick the grate' : 'swim through');
+    }
+    notes.push('in by ' + S.flags.cityHow);
+    B.ch('Along the Salt Quay');
+    B.visit('k3_find');
+    if (B.has('Go to Number Nine')) { B.ch('Go to Number Nine'); B.ch('Back'); }
+    else if (o.cart) { B.ch('Stop the cart'); await fight(); B.ch('Back'); }
+    else { B.ch('Follow the cart'); B.ch('Back'); }
+    B.visit('k3_factor'); grab(); if (B.has('Your name is in')) { B.ch('Your name is in'); B.ch('Back'); } else B.ch('Leave him');
+    B.visit('k3_side'); grab(); if (B.has('Remember it')) B.ch('Remember it'); B.ch('Back');
+    B.spendAll(['blades','tough']); restAt('k3_room');
+    B.visit('k3_yard'); grab();
+    if (!o.yardFight && (B.has('sail-loft') || B.has('side door'))) B.ch(B.has('sail-loft') ? 'sail-loft' : 'side door');
+    else { B.ch('Go over the wall'); await fight(); B.ch('Back'); restAt('k3_room'); B.visit('k3_yard'); B.ch('Down to the cellar'); }
+    notes.push('boss at level ' + S.level); B.ch('Fight Voss'); await fight();
+    B.ch('Decide'); B.ch(o.hoard === 'quiet' ? 'Keep it quiet' : 'Expose it'); B.ch('Continue'); B.ch('End of chapter 3');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -203,6 +234,7 @@
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'argue', order:'warners'});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({farm:'talk', prep:'strings', captain:'freed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({gate:'guest', quiver:true, fragment:'kept'})).join(' | '));
+      if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({gate:'water', water:'force', cart:true, yardFight:true, hoard:'exposed'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -212,6 +244,7 @@
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'fight', order:'keepers', chapel:false});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({haul:true, pit:false, captain:'handed'})).join(' | '));
       if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({glade:false, fragment:'crown'})).join(' | '));
+      if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -248,6 +281,14 @@
       S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
       lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Kael ch3: Voss at levels 7–8, for each of Wren's barge outcomes (her ch3 writes `barge`)
+    if (COMBATS.k3_boss) for (const [barge, xp] of [[null, 1160], ['sunk', 1160], ['crown', 1160], [null, 1460]]){
+      M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null, wren: barge ? {flags:{barge}, level:1} : null}}; S = null;
+      beginHero('kael'); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['leadership','lore','lockpick','survival']); gainXP(xp); B.spendAll(['blades','tough']); S.gear.armor = 1; S.items.draught = 3; restAll(); save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('k3_boss').r === 'win') wins++;
+      lines.push(`(Wren's barge ${barge || 'not yet'}) kael L${S.level} k3_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     try { localStorage.clear(); } catch (e) {} M = null; S = null; C = null; screen = 'title'; render(true);
     const errs = B.errors.slice(errs0);
