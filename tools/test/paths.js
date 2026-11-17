@@ -108,6 +108,28 @@
     B.ch('Decide'); B.ch(o.speak ? 'Speak the Word' : 'Take your hand'); B.ch('Down the mountain'); B.ch('End of chapter 2');
     return notes;
   };
+  B.tamsin2 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('tamsin'); const st = nextStep('tamsin'); if (st.kind !== 'next' || st.n !== 2) throw new Error('tamsin ch2 not available: ' + JSON.stringify(st));
+    beginChapter(2); notes.push('start level ' + S.level);
+    B.ch('Up the pass');
+    B.visit('t2_snow'); B.ch('Stand and fight'); await fight(); B.ch('Back');
+    B.spendAll(['divine','maces']); restAt('t2_camp');
+    if (o.chapel !== false){ B.visit('t2_chapel'); B.ch('Tend her'); B.ch('Back'); restAt('t2_camp'); }
+    B.visit('t2_post');
+    if (o.post === 'argue') { B.ch(tEvac() ? 'Let them through' : 'write that down'); B.ch('Back'); }
+    else if (o.post === 'sneak') { B.ch('goat track'); B.ch('Back'); }
+    else { B.ch('Break through'); await fight(); B.ch('Back'); }
+    B.spendAll(['divine','maces']);
+    B.visit('t2_descend'); B.ch('Down to Saint');
+    B.visit('t2_hospice'); grab(); B.rest(); if (S.mode === 'scene') B.ch('Back');
+    B.visit('t2_abbess'); B.ch('Back'); B.visit('t2_tower'); B.ch('Back');
+    restAt('t2_hospice');
+    B.visit('t2_night'); grab(); notes.push('boss at level ' + S.level); B.ch('Into the courtyard'); await fight();
+    notes.push('freed converts ' + S.flags.freedConverts);
+    B.ch('Hear them out'); B.ch(o.order === 'keepers' ? 'Keep faith' : 'Ring the bells'); B.ch('Continue'); B.ch('End of chapter 2');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -128,12 +150,14 @@
       await B.kael({dario:'killed'}); await B.ilsa({choice:'hide'}); await B.tamsin({orrin:'freed'});
       await B.wren({patrol:'fight', key:'kept'});
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:true, hold:'self'});
+      if (hasChapter('tamsin', 2)) await B.tamsin2({post:'argue', order:'warners'});
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
       M.heroes.tamsin.flags.choice = 'defend'; save();
       await B.wren({patrol:'bluff', key:'sold', spend:['lockpick','lore','stealth','bows']});
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:false, hold:'speak'});
+      if (hasChapter('tamsin', 2)) await B.tamsin2({post:'fight', order:'keepers', chapel:false});
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -148,6 +172,12 @@
     if (COMBATS.i2_boss) for (const c of ['evacuate', 'defend']) for (const xp of [400, 620]){
       M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:{flags:{choice:c}, level:1}, wren:null}};
       lines.push(`(Tamsin ${c}) ` + await B.sim('ilsa', xp, 'i2_boss', n, ['arcane','spellcraft'], ['lore','lockpick','leadership','stealth']));
+    }
+    if (COMBATS.t2_boss) for (const orrin of ['freed', undefined, 'judged']) for (const xp of [420, 620]){
+      M = null; S = null; beginHero('tamsin', true); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['divine','leadership','maces','survival']); gainXP(xp); B.spendAll(['divine','maces']); restAll(); S.flags.orrin = orrin; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('t2_boss').r === 'win') wins++;
+      lines.push(`(Orrin ${orrin || 'never met'}) tamsin L${S.level} t2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     try { localStorage.clear(); } catch (e) {} M = null; S = null; C = null; screen = 'title'; render(true);
     const errs = B.errors.slice(errs0);
