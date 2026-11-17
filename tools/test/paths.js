@@ -74,10 +74,14 @@
     window.later = function(fn){ const g = C.gen; if (C && C.gen === g && !C.over) fn(); };
     window.render = () => {};
     try {
+      // a party fight writes health and XP back to each hero, so keep their states too
+      const heroSnap = isPartyState(S) ? JSON.stringify(M.heroes) : null;
       startCombat(combatId);
       for (let g = 0; g < 5000 && C.phase !== 'over'; g++){ if (C.phase === 'player') B.decide(); else break; }
       const r = C.phase === 'over' ? C.over.result : 'stuck'; const rounds = C.round;
-      restoreSnap(); C.gen++; C = null; return {r, rounds};
+      restoreSnap(); C.gen++; C = null;
+      if (heroSnap) M.heroes = JSON.parse(heroSnap);
+      return {r, rounds};
     } finally { window.later = keepLater; window.render = keepRender; }
   };
   B.sim = async function(hero, xp, combatId, n, order, pre){
@@ -291,6 +295,55 @@
     B.ch('Decide'); B.ch(o.barge === 'crown' ? 'Steer it' : 'Open the seacocks'); B.ch('Continue'); B.ch('End of chapter 3');
     return notes;
   };
+  // The Act 2 party engine, before any Act 2 chapter exists: registers a throwaway party chapter, pools supplies,
+  // runs a four-hero fight, opens a hero's sheet over the party, saves and reloads, restarts, then removes it all.
+  B.partyTest = async () => {
+    const notes = [], ok = (c, t) => { if (!c) fail('party: ' + t); };
+    ok(partyReady(), 'not ready after every chapter 3');
+    const pre = partyStep(); notes.push('card before: ' + pre.kind);
+    const gold0 = PARTY.reduce((n, id) => n + (M.heroes[id].gold || 0), 0), xp0 = PARTY.map(id => M.heroes[id].xp);
+    HEROES.party.chapters[1] = {title:'Party test', start:'zz_party'};
+    SCENES.zz_party = {view: () => ({title:'Party test', text:['Four heroes in one place.'], choices:[{label:'Fight together', act: () => startCombat('zz_party')}, partyRest(), Object.assign({label:'Lore check', act: () => {}}, chk('lore', 1)), Object.assign({label:'Ilsa check', act: () => {}}, chkBy('ilsa', 'arcane', 1))].filter(Boolean)})};
+    SCENES.zz_partyWin = {view: () => ({title:'Won', text:['Done.'], choices:[{label:'Finish the test', act: () => { S.mode = 'end'; save(); render(true); }}]})};
+    COMBATS.zz_party = {title:'Party test', enemies:() => ['shardbound', 'sarneguard', 'sarneguard', 'inkwraith', 'voss', 'hale'], lethal:true, win:'zz_partyWin', back:'zz_party', intro:'A test fight.'};
+    try {
+      screen = 'select'; render(true);
+      ok(document.querySelector('.hero.party'), 'no Act 2 card');
+      [...document.querySelectorAll('.hero.party .btn')].find(b => /Act 2/.test(b.textContent)).click();
+      ok(S === M.party && S.scene === 'zz_party', 'did not start the party chapter');
+      ok(M.party.gold === gold0 && PARTY.every(id => M.heroes[id].gold === 0), 'gold not pooled');
+      ok(document.querySelectorAll('.pm-who').length === 4, 'top bar does not show four heroes');
+      const xpStart = PARTY.map(id => M.heroes[id].xp); // after any catch-up at the chapter start
+      ok(B.has('Lore check') && B.has('Ilsa check'), 'party skill checks failed');
+      B.ch('Fight together');
+      ok(C && C.party && C.units.filter(u => u.hero).length === 4, 'party fight does not have four heroes');
+      notes.push('heroes: ' + C.units.filter(u => u.hero).map(u => `${u.name} ${u.hp}/${u.max} ${u.row}`).join(', '));
+      await fight();
+      ok(PARTY.every((id, i) => M.heroes[id].xp > xpStart[i]), 'not everyone got experience');
+      notes.push('fight won, xp each +' + (M.heroes.kael.xp - xpStart[0]));
+      // a hero's sheet over the party: S is the hero while open, the party again after
+      openSheet(); [...document.querySelectorAll('.modal .btn')].find(b => b.textContent.startsWith('Ilsa Venn')).click();
+      ok(S === M.heroes.ilsa && document.querySelector('.modal h2').textContent === 'Ilsa Venn', 'Ilsa’s sheet did not open');
+      const plus = [...document.querySelectorAll('.modal .pm')].find(b => b.textContent === '+' && !b.disabled);
+      if (plus) plus.click();
+      ok(S === M.heroes.ilsa && document.querySelector('.pm-who'), 'sheet click lost the party page');
+      closeModal(); ok(S === M.party, 'S not back to the party after closing the sheet');
+      B.ch('Finish the test');
+      ok(document.querySelector('.end h2').textContent.includes('Act 2'), 'party chapter end did not render');
+      // save and reload
+      const saved = JSON.stringify(M); M = JSON.parse(saved); S = null; screen = 'select'; render(true);
+      beginParty(); ok(S === M.party && S.mode === 'end', 'party did not reload at its chapter end');
+      // restart the chapter: heroes go back to how they were when it began
+      restartChapter(); ok(S === M.party && S.scene === 'zz_party' && M.heroes.kael.xp === xpStart[0], 'restart did not restore the chapter start');
+      // back to a solo hero and their ending
+      beginHero('kael'); ok(S === M.heroes.kael && document.querySelector('.end'), 'switching back to Kael failed');
+      notes.push('sheet, save/reload, restart and switch: ok');
+    } finally {
+      delete HEROES.party.chapters[1]; delete SCENES.zz_party; delete SCENES.zz_partyWin; delete COMBATS.zz_party;
+      delete M.party; if (M.cur === 'party') M.cur = 'kael';
+    }
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -320,6 +373,7 @@
       // The bot's Ilsa never carries Aurel, so put him at the Cathedral here to exercise Tamsin's cure path
       if (hasChapter('tamsin', 3)) { M.heroes.ilsa.flags.aurelSent = true; save(); }
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({calm:true, rite:'aurel'})).join(' | '));
+      lines.push('     party engine: ' + (await B.partyTest()).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});

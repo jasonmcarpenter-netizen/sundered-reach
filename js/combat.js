@@ -6,6 +6,19 @@ function go(id){
 }
 function toMap(id){ S.mode = 'map'; S.map = id; save(); render(true); }
 
+// ---------- party helpers ----------
+// Act 2 plays as a party: S is then M.party (hero 'party'), which holds the shared story state, while each hero's
+// level, skills, gear and health stay in M.heroes[id]. The stat functions (pcMax, sk, …) read S, so anything about
+// one hero runs inside asHeroState, which points S at that hero for the length of one call.
+const isPartyState = s => !!(s && s.hero === 'party');
+function asHeroState(hid, fn){
+  if (!M || !M.heroes[hid] || (S && S.hero === hid)) return fn();
+  const keep = S; S = M.heroes[hid];
+  try { return fn(); } finally { S = keep; }
+}
+// A unit's action or stat lookup: in a party fight, under that hero's state; in a solo fight S already is the hero
+function asHero(u, fn){ return (C && C.party && u && u.hero) ? asHeroState(u.hero, fn) : fn(); }
+
 // ---------- combat ----------
 function startCombat(id){
   const def = COMBATS[id];
@@ -21,14 +34,23 @@ function startCombat(id){
     return {id:'e' + i, key:k, side:'enemy', name, hp:d.hp, max:d.hp, row:d.row || 'front', dmg:d.dmg, acc:d.acc, dodge:d.dodge, armor:d.armor,
       init:d.init, xp:d.xp, ranged:!!d.ranged, hollow:!!d.hollow, calm:!!d.calm, cleanse:!!d.cleanse, spec:d.spec || null, bleed:d.bleed || 0, greyChance:d.greyChance || 0, st:{}, cd:{}, turns:0, winding:false};
   });
-  const hd = H();
-  const heroes = [{id:'pc', side:'hero', name:hd.name, hp:Math.max(1, S.pc.hp), max:pcMax(), sp:Math.min(S.pc.sp || 0, spMax()), spMax:spMax(), row:hd.row,
-    init:S.pc.attrs.grace * 2, dodge:S.pc.attrs.grace * 2, armor:pcArmor(), st:{}, cd:{}}];
-  if (S.ally.joined){
-    const a = ALLIES[S.ally.id];
-    heroes.push({id:'ally', side:'hero', name:a.name, hp:Math.max(1, S.ally.hp), max:allyMax(), sp:0, spMax:0, row:a.row, init:a.init, dodge:a.dodge, armor:a.armor, st:{}, cd:{}});
+  // A hero unit carries `hero` (whose stats and actions it uses); a companion carries `allyId`.
+  // Solo chapters: the hero is unit 'pc' and the companion 'ally'. Party chapters (Act 2): each hero is a unit named by
+  // their id, and their stats are read from their own saved state (see asHero).
+  const heroUnit = (uid, hid) => { const hd = HEROES[hid]; return {id:uid, hero:hid, side:'hero', name:hd.name, hp:Math.max(1, S.pc.hp), max:pcMax(), sp:Math.min(S.pc.sp || 0, spMax()), spMax:spMax(),
+    row:hd.row, init:S.pc.attrs.grace * 2, dodge:S.pc.attrs.grace * 2, armor:pcArmor(), st:{}, cd:{}}; };
+  let heroes;
+  if (isPartyState(S)){
+    const P = S;
+    heroes = P.members.map(hid => Object.assign(asHeroState(hid, () => heroUnit(hid, hid)), {row:(P.rows && P.rows[hid]) || HEROES[hid].row}));
+  } else {
+    heroes = [heroUnit('pc', S.hero)];
+    if (S.ally.joined){
+      const a = ALLIES[S.ally.id];
+      heroes.push({id:'ally', allyId:S.ally.id, side:'hero', name:a.name, hp:Math.max(1, S.ally.hp), max:allyMax(), sp:0, spMax:0, row:a.row, init:a.init, dodge:a.dodge, armor:a.armor, st:{}, cd:{}});
+    }
   }
-  C = {id, def, snap, units:heroes.concat(enemies), order:[], idx:0, round:0, log:[def.intro], phase:'wait', active:null, pick:null, over:null, gen:0, used:{}};
+  C = {id, def, snap, party:isPartyState(S), units:heroes.concat(enemies), order:[], idx:0, round:0, log:[def.intro], phase:'wait', active:null, pick:null, over:null, gen:0, used:{}};
   render(true);
   later(newRound, 350);
 }
@@ -54,14 +76,14 @@ function applyDmg(u, n){
   return n;
 }
 function addGrey(t, n){
-  if (t.id === 'pc' && S.hero === 'ilsa' && n > 1){ n = 1; log('Old Blood: the grey barely takes hold of Ilsa.'); }
+  if (t.hero === 'ilsa' && n > 1){ n = 1; log('Old Blood: the grey barely takes hold of Ilsa.'); }
   t.st.grey = Math.max(t.st.grey || 0, n);
 }
 function tick(u){
   const st = u.st;
   if (st.bleed){ log(`${u.name} bleeds for 3.`); applyDmg(u, 3); if (--st.bleed <= 0) delete st.bleed; }
   if (u.hp > 0 && st.grey){
-    const n = (u.id === 'pc' && (S.hero === 'ilsa' || S.pc.attrs.spirit >= 3)) ? 2 : 3;
+    const n = (u.hero && (u.hero === 'ilsa' || asHero(u, () => S.pc.attrs.spirit) >= 3)) ? 2 : 3;
     log(`The grey gnaws at ${u.name} for ${n}.`); applyDmg(u, n); if (--st.grey <= 0) delete st.grey;
   }
   if (st.inspired && --st.inspired <= 0) delete st.inspired;
@@ -86,7 +108,7 @@ function step(){
 }
 function checkEnd(){
   if (C.over) return true;
-  if (U('pc').hp <= 0){ endCombat('lose'); return true; }
+  if (C.party ? !heroesAlive().length : U('pc').hp <= 0){ endCombat('lose'); return true; }
   if (enemiesAlive().length === 0){ endCombat('win'); return true; }
   return false;
 }
@@ -95,12 +117,12 @@ function checkEnd(){
 function meleeTargets(){ const e = enemiesAlive(); const f = e.filter(x => x.row === 'front'); return f.length ? f : e; }
 function strike(u, t, o){
   let acc, lo, hi;
-  if (u.id === 'pc'){
+  if (u.hero){
     if (o.spell){ acc = spellAcc() - Math.floor(t.dodge / 2); [lo, hi] = spellDmg(); }
     else if (o.holy){ acc = divineAcc() - Math.floor(t.dodge / 2); [lo, hi] = divineDmg(); }
     else if (o.bow){ acc = bowAcc() - t.dodge; [lo, hi] = bowDmg(); }
     else { acc = pcAcc() - t.dodge; [lo, hi] = pcDmg(); }
-  } else { acc = 72 - t.dodge; [lo, hi] = ALLIES[S.ally.id].dmg(); }
+  } else { acc = 72 - t.dodge; [lo, hi] = ALLIES[u.allyId].dmg(); }
   acc = clamp(acc + (u.st.inspired ? 10 : 0) + (o.accMod || 0), 15, 95);
   const lbl = o.label ? `${u.name}’s ${o.label}` : u.name;
   const sure = !!u.st.poised; // Wren after Vanish: her next attack can't miss and always crits
@@ -109,15 +131,15 @@ function strike(u, t, o){
   let d = ri(lo, hi) * (o.mult || 1);
   if (u.st.grey) d *= 0.8;
   let crit = false;
-  if (u.id === 'pc' && (sure || rand(100) < 5 + S.pc.attrs.grace)){ d *= 1.5; crit = true; }
+  if (u.hero && (sure || rand(100) < 5 + S.pc.attrs.grace)){ d *= 1.5; crit = true; }
   d = Math.max(1, Math.round(d - t.armor));
   log(`${lbl} ${crit ? 'lands a critical hit on' : 'hits'} ${t.name} for ${d}.`);
   applyDmg(t, d);
   return true;
 }
 function breakWind(t){ if (t.winding){ t.winding = false; log(`${t.name} is stunned, and the ${t.spec.name} is broken off.`); } else log(`${t.name} is stunned.`); }
-const isPc = (u, hero) => u.id === 'pc' && S.hero === hero;
-const isAlly = (u, id) => u.id === 'ally' && S.ally.id === id;
+const isPc = (u, hero) => u.hero === hero;
+const isAlly = (u, id) => u.allyId === id;
 const front = u => u.row === 'front';
 const ACTIONS = {
   // Kael
@@ -190,7 +212,7 @@ function pickTarget(id){
 function doAct(actId, tid){
   const a = ACTIONS[actId]; const u = U(C.active);
   if (a.sp) u.sp -= a.sp;
-  a.run(u, tid ? U(tid) : null);
+  asHero(u, () => a.run(u, tid ? U(tid) : null));
   if (a.cd) u.cd[actId] = a.cd;
   if (C.over){ render(); return; }
   finishTurn();
@@ -205,7 +227,7 @@ function enemyStrike(e, t, mult, sp, aoe){
   let d = ri(e.dmg[0], e.dmg[1]) * mult;
   if (e.st.grey) d *= 0.8;
   let note = '';
-  if (t.id === 'pc' && S.hero === 'kael' && !e.ranged && rand(100) < pcBlock() + (t.st.defend ? 25 : 0)){ d *= 0.35; note = ' (blocked)'; }
+  if (t.hero === 'kael' && !e.ranged && rand(100) < asHero(t, pcBlock) + (t.st.defend ? 25 : 0)){ d *= 0.35; note = ' (blocked)'; }
   if (t.st.defend) d *= 0.5;
   d = Math.max(1, Math.round(d - t.armor));
   log(`${e.name}${sp ? '’s ' + sp.name : ''} hits ${t.name} for ${d}${note}.`);
@@ -236,15 +258,23 @@ function endCombat(result){
   const def = C.def; const p = U('pc'); const a = U('ally');
   const over = {result, xp:0, ups:[]};
   if (result === 'lose' && def.lethal){ C.over = over; C.phase = 'over'; render(); return; }
-  S.pc.hp = Math.max(1, p.hp); S.pc.sp = p.sp;
-  if (a) S.ally.hp = a.hp > 0 ? a.hp : Math.ceil(allyMax() * 0.4);
+  // Party: each hero's health goes back to their own save; a hero who fell gets up again at 40%
+  const heroUnits = C.units.filter(u => u.hero);
+  const writeBack = lostAt => heroUnits.forEach(u => asHeroState(u.hero, () => {
+    S.pc.hp = lostAt ? Math.ceil(pcMax() * lostAt) : u.hp > 0 ? u.hp : Math.ceil(pcMax() * 0.4); S.pc.sp = u.sp;
+  }));
+  if (C.party) writeBack(0);
+  else {
+    S.pc.hp = Math.max(1, p.hp); S.pc.sp = p.sp;
+    if (a) S.ally.hp = a.hp > 0 ? a.hp : Math.ceil(allyMax() * 0.4);
+  }
   if (result === 'win'){
     over.xp = C.units.filter(u => u.side === 'enemy').reduce((s, u) => s + u.xp, 0);
     if (def.done) def.done();
     over.ups = gainXP(over.xp);
     over.next = def.win;
   } else if (result === 'lose'){
-    S.pc.hp = Math.ceil(pcMax() * 0.5);
+    if (C.party) writeBack(0.5); else S.pc.hp = Math.ceil(pcMax() * 0.5);
     over.xp = def.loseXP || 0; if (def.done) def.done();
     over.ups = gainXP(over.xp);
     over.next = def.lose;
@@ -261,7 +291,7 @@ function leaveCombat(){
   if (over.next){ S.mode = 'scene'; S.scene = over.next; } else S.mode = 'map';
   save(); render(true);
 }
-function restoreSnap(){ S = JSON.parse(C.snap); M.heroes[M.cur] = S; }
+function restoreSnap(){ S = JSON.parse(C.snap); if (isPartyState(S)) M.party = S; else M.heroes[M.cur] = S; }
 function retryCombat(){ const id = C.id; restoreSnap(); C = null; startCombat(id); }
 function stepBack(){ const id = C.id; restoreSnap(); C = null; S.combatId = null; S.mode = 'scene'; S.scene = COMBATS[id].back; save(); render(true); }
 

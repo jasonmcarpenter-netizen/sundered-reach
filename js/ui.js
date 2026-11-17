@@ -139,7 +139,7 @@ function actionPanel(){
   if (C.phase === 'over'){
     const o = C.over;
     if (o.result === 'lose' && C.def.lethal){
-      box.append(h('div', {class:'result'}, h('h3', {style:'color:var(--bad)'}, `${H().name} falls`),
+      box.append(h('div', {class:'result'}, h('h3', {style:'color:var(--bad)'}, C.party ? 'The party falls' : `${H().name} falls`),
         h('p', {class:'muted'}, 'The story could end here. Try the fight again from the start.'),
         h('div', {style:'display:flex;gap:8px;justify-content:center;flex-wrap:wrap'},
           h('button', {class:'btn', onclick: retryCombat}, 'Retry the fight'),
@@ -149,7 +149,7 @@ function actionPanel(){
     const title = o.result === 'win' ? 'Victory' : o.result === 'fled' ? 'You got away' : 'You yield';
     box.append(h('div', {class:'result'}, h('h3', {style:'color:var(--accent)'}, title),
       o.xp ? h('p', {}, `+${o.xp} experience`) : null,
-      o.ups.length ? h('p', {class:'pts'}, `Level up! ${H().name} is now level ${S.level}, fully healed, with new skill points to spend.`) : null,
+      o.ups.length ? h('p', {class:'pts'}, C.party ? `Level up: ${o.ups.join(', ')}. Fully healed, with new skill points to spend.` : `Level up! ${H().name} is now level ${S.level}, fully healed, with new skill points to spend.`) : null,
       h('button', {class:'btn', onclick: leaveCombat}, 'Continue')));
     return box;
   }
@@ -167,20 +167,20 @@ function actionPanel(){
     return box;
   }
   box.append(h('div', {class:'prompt'}, `${u.name}’s turn · ${u.row} row`));
-  const ids = u.id === 'pc' ? H().actions : ALLIES[S.ally.id].actions;
+  const ids = u.hero ? HEROES[u.hero].actions : ALLIES[u.allyId].actions;
   const grid = h('div', {class:'abtns'});
   ids.forEach(id => {
     const a = ACTIONS[id];
-    if (!a.known(u)) return;
+    if (!asHero(u, () => a.known(u))) return;
     const cd = u.cd[id] || 0;
     const spShort = a.sp && u.sp < a.sp;
-    const ok = a.can(u) && !cd && !spShort;
-    const sub = cd ? `Ready in ${cd}` : spShort ? `Needs ${a.sp} SP` : !a.can(u) ? (a.why || 'Not now') : (a.sp ? `${a.sp} SP · ${a.sub}` : a.sub);
+    const can = asHero(u, () => a.can(u)); const ok = can && !cd && !spShort;
+    const sub = cd ? `Ready in ${cd}` : spShort ? `Needs ${a.sp} SP` : !can ? (a.why || 'Not now') : (a.sp ? `${a.sp} SP · ${a.sub}` : a.sub);
     grid.append(h('button', {class:'abtn', disabled: !ok, onclick: () => choose(id)}, a.label, h('small', {}, sub)));
   });
   Object.keys(ITEMS).forEach(id => {
     const n = S.items[id] || 0;
-    if (ITEMS[id].mage && !spMax()) return;
+    if (ITEMS[id].mage && !u.spMax) return;
     grid.append(h('button', {class:'abtn', disabled: n <= 0, onclick: () => chooseItem(id)}, ITEMS[id].name, h('small', {}, `${n} left`)));
   });
   box.append(grid);

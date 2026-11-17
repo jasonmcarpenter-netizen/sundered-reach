@@ -32,6 +32,13 @@ em{color:var(--ink)}
 .who .name span{font-family:var(--body);font-size:15px;color:var(--muted)}
 .bars{display:flex;gap:10px;flex-wrap:wrap}
 .meter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* Act 2: the party top bar shows all four heroes */
+.pmembers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 10px}
+.pm-who{min-width:0;font-size:13px}
+.pm-who b{font-weight:600}
+.pm-who .meter .bar{flex:1;width:auto;min-width:30px}
+@media (max-width:560px){.top.party .who{display:contents}.top.party .tbtns{grid-column:2;grid-row:1}.top.party .pmembers{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(2,minmax(0,1fr))}}
+.modal .btn .badge{position:static;margin-left:8px}
 .bar{width:92px;height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--good)}
 .bar.xp>i{background:var(--accent)}

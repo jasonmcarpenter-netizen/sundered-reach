@@ -35,18 +35,20 @@
 
   // ---- combat AI ----
   const pct = u => u.hp / u.max;
-  const ready = (u, id) => { const a = ACTIONS[id]; return a.known(u) && a.can(u) && !(u.cd[id] > 0) && !(a.sp && u.sp < a.sp); };
+  const ready = (u, id) => { const a = ACTIONS[id]; return asHero(u, () => a.known(u) && a.can(u)) && !(u.cd[id] > 0) && !(a.sp && u.sp < a.sp); };
   function act(id, tid){ choose(id); if (C && C.phase === 'target') pickTarget(tid); }
   function item(id, tid){ chooseItem(id); pickTarget(tid); }
   const low = arr => arr.slice().sort((a, b) => a.hp - b.hp)[0];
   function decide(){
     const u = U(C.active); const es = enemiesAlive(); const hs = heroesAlive(); const pc = U('pc');
+    // a hero unit acts by its own hero's tactic; supplies come from the party pack in Act 2
+    const hero = u.hero, items = C.party ? M.party.items : S.items, me = u.id;
     const winding = es.find(e => e.winding);
     const hurt = low(hs.filter(x => pct(x) < 0.5));
-    if (u.id === 'pc'){
-      if (pct(u) < 0.3 && S.items.draught > 0) return item('draught', 'pc');
-      if (u.st.grey >= 2 && pct(u) < 0.5 && S.items.tonic > 0) return item('tonic', 'pc');
-      if (S.hero === 'kael'){
+    if (hero){
+      if (pct(u) < 0.3 && items.draught > 0) return item('draught', me);
+      if (u.st.grey >= 2 && pct(u) < 0.5 && items.tonic > 0) return item('tonic', me);
+      if (hero === 'kael'){
         if (pct(u) < 0.3 && ready(u, 'laststand')) return act('laststand');
         if (winding && !winding.spec.aoe && ready(u, 'bash') && meleeTargets().includes(winding)) return act('bash', winding.id);
         if (winding && winding.spec.aoe || (winding && pct(u) < 0.5)) return act('defend');
@@ -55,17 +57,17 @@
         if (ready(u, 'power')) return act('power', t.id);
         return act('attack', t.id);
       }
-      if (S.hero === 'ilsa'){
-        if (u.sp < 5){ if (S.items.aether > 0 && u.sp < 4) return item('aether', 'pc'); return act('channel'); }
+      if (hero === 'ilsa'){
+        if (u.sp < 5){ if (items.aether > 0 && u.sp < 4) return item('aether', me); return act('channel'); }
         if (winding && ready(u, 'shackles')) return act('shackles', winding.id);
-        if (winding && winding.spec.aoe && ready(u, 'ward')) return act('ward', 'pc');
+        if (winding && winding.spec.aoe && ready(u, 'ward')) return act('ward', me);
         const boss = es.find(e => e.max >= 60);
         if (boss && ready(u, 'word')) return act('word', boss.id);
         if (es.length >= 3 && ready(u, 'arc')) return act('arc');
-        if (pct(u) < 0.5 && !u.st.ward && ready(u, 'ward')) return act('ward', 'pc');
+        if (pct(u) < 0.5 && !u.st.ward && ready(u, 'ward')) return act('ward', me);
         return act('firebolt', low(es).id);
       }
-      if (S.hero === 'wren'){
+      if (hero === 'wren'){
         if (winding && ready(u, 'hamstring')) return act('hamstring', winding.id);
         if (winding && winding.spec.aoe && ready(u, 'vanish')) return act('vanish');
         if (pct(u) < 0.35 && ready(u, 'vanish')) return act('vanish');
@@ -74,7 +76,7 @@
         if (ready(u, 'aimed')) return act('aimed', t.id);
         return act('shoot', t.id);
       }
-      if (S.hero === 'tamsin'){
+      if (hero === 'tamsin'){
         const greyed = hs.filter(x => x.st.grey).length;
         const cleansable = es.filter(e => e.cleanse && e.hp <= e.max * 0.6).length;
         if (ready(u, 'mendgrey') && (cleansable >= 1 || greyed >= 1 && pct(u) < 0.6)) return act('mendgrey');
@@ -90,7 +92,7 @@
         return act('defend');
       }
     } else {
-      const aid = S.ally.id;
+      const aid = u.allyId;
       if (aid === 'bran'){ if (hurt && ready(u, 'bandage')) return act('bandage', hurt.id); return act('sling', low(es).id); }
       if (aid === 'hask'){ if (pct(pc) < 0.6 && ready(u, 'guard')) return act('guard'); if (ready(u, 'hammer')) return act('hammer', low(meleeTargets()).id); return act('defend'); }
       if (aid === 'tobin'){ if (pct(pc) < 0.6 && ready(u, 'cover')) return act('cover'); if (ready(u, 'haft')) return act('haft', low(meleeTargets()).id); return act('defend'); }
@@ -125,5 +127,5 @@
     fail('fight did not end: ' + id);
   };
   B.rest = function(){ const r = ['Rest', 'rest']; if (B.has('Rest')) B.ch('Rest'); };
-  B.state = () => ({hero:S.hero, mode:S.mode, scene:S.scene, map:S.map, level:S.level, hp:S.pc.hp, sp:S.pc.sp});
+  B.state = () => ({hero:S.hero, mode:S.mode, scene:S.scene, map:S.map, level:S.level, hp:S.pc && S.pc.hp, sp:S.pc && S.pc.sp});
 })();
