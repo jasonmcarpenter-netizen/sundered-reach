@@ -154,6 +154,32 @@
     B.ch('Decide'); B.ch(o.captain === 'handed' ? 'Hand her' : 'Tear up'); B.ch('Continue'); B.ch('End of chapter 2');
     return notes;
   };
+  B.wren2 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 80)));
+    beginHero('wren'); const st = nextStep('wren'); if (st.kind !== 'next' || st.n !== 2) throw new Error('wren ch2 not available: ' + JSON.stringify(st));
+    beginChapter(2); notes.push('start level ' + S.level);
+    B.ch('North along');
+    B.visit('w2_hut'); grab(); B.ch('Back');
+    B.visit('w2_sarne');
+    if (B.has('Fight')){ B.ch('Fight'); await fight(); B.ch('Back'); }
+    else { B.ch(B.has('Read the bark') ? 'Read the bark' : 'Pick through'); B.ch('Back'); }
+    B.spendAll(['bows','tough']); restAt('w2_camp');
+    if (o.glade !== false){ B.visit('w2_glade'); B.ch('Fight'); await fight(); B.ch('Back'); B.spendAll(['bows','tough']); restAt('w2_camp'); }
+    B.visit('w2_onward'); B.ch('Into the enclave');
+    B.visit('w2_gate'); grab();
+    if (B.has('Walk in')) B.ch('Walk in');
+    else B.ch(o.gate === 'guest' ? 'envoy’s camp' : B.has('one of yours') ? 'one of yours' : 'over the wall');
+    B.ch('Back');
+    B.visit('w2_marrow'); grab(); B.ch('Back');
+    B.visit('w2_hall'); B.ch(B.has('Look for your father') ? 'Look for your father' : B.has('Read the oldest') ? 'Read the oldest' : 'bone comb'); B.ch('Back');
+    B.visit('w2_door'); if (B.has('Open it')) B.ch('Open it'); else B.ch('Leave'); B.ch('Back');
+    B.visit('w2_well'); grab(); B.ch('Back');
+    if (o.quiver){ B.visit('w2_watch'); B.ch('steal the quiver'); B.ch('Back'); }
+    B.spendAll(['bows','tough']); restAt('w2_hall');
+    B.visit('w2_night'); notes.push('boss at level ' + S.level); B.ch('Fight Nell'); await fight();
+    B.ch('Hear them out'); B.ch(o.fragment === 'kept' ? 'Keep it' : 'Give the fragment'); B.ch('Continue'); B.ch('End of chapter 2');
+    return notes;
+  };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
   // ---- the standard check after any change (CLAUDE.md, Working rules) ----
@@ -176,6 +202,7 @@
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:true, hold:'self'});
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'argue', order:'warners'});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({farm:'talk', prep:'strings', captain:'freed'})).join(' | '));
+      if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({gate:'guest', quiver:true, fragment:'kept'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -184,6 +211,7 @@
       if (hasChapter('ilsa', 2)) await B.ilsa2({speak:false, hold:'speak'});
       if (hasChapter('tamsin', 2)) await B.tamsin2({post:'fight', order:'keepers', chapel:false});
       if (hasChapter('kael', 2)) lines.push('     kael2: ' + (await B.kael2({haul:true, pit:false, captain:'handed'})).join(' | '));
+      if (hasChapter('wren', 2)) lines.push('     wren2: ' + (await B.wren2({glade:false, fragment:'crown'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -212,6 +240,14 @@
       S.flags.dario = d === 'killed' ? 'killed' : 'spared'; if (d === 'ally') S.flags.darioAlly = true; S.flags.k2Prep = prep; save();
       let wins = 0; for (let i = 0; i < n; i++) if (B.trial('k2_boss').r === 'win') wins++;
       lines.push(`(Dario ${d}, prep ${prep || 'none'}) kael L${S.level} k2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
+    }
+    // Wren ch2: with Ysolde's wardens (the usual way) or as the Crown's guest (one more knife); quiver stolen or not
+    if (COMBATS.w2_boss) for (const [wardens, quiver, xp] of [[true, false, 400], [true, false, 620], [true, true, 620], [false, false, 620], [false, false, 880]]){
+      M = null; S = null; beginHero('wren', true); S.ally.joined = true; S.ally.hp = allyMax();
+      B.spend(['lockpick','lore','leadership','stealth']); gainXP(xp); B.spendAll(['bows','tough']); S.gear.bow = 2; restAll();
+      S.flags.metAunt = true; S.flags.asGuest = !wardens; S.flags.quiverTaken = quiver; save();
+      let wins = 0; for (let i = 0; i < n; i++) if (B.trial('w2_boss').r === 'win') wins++;
+      lines.push(`(${wardens ? 'wardens' : 'Crown guest'}, quiver ${quiver ? 'stolen' : 'kept'}) wren L${S.level} w2_boss: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%)`);
     }
     try { localStorage.clear(); } catch (e) {} M = null; S = null; C = null; screen = 'title'; render(true);
     const errs = B.errors.slice(errs0);
