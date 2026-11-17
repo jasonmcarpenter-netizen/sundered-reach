@@ -23,7 +23,8 @@ A turn-based, story-heavy browser RPG in the Spiderweb Software tradition (Avern
 - **Done:** Act 1 opening chapters for all four heroes: **Kael** (Varrow arena, frame-up, escape, the Grey Warden), **Ilsa** (Arcanum, forbidden text, vault, Proctor Graff), **Tamsin** (Kell's Rest, grey sickness, evacuate-or-defend, companion Bracken) and **Wren** (Gallows Ford, Quell's sealed crate, Steward Voss's offer, companion Tobin, Sable at the old waystation, sell-or-keep-the-key). Hero select, cross-hero echoes, journal, character sheet and saves all work.
 - **Wren's links:** reads Kael's Dario outcome (spared ally → Dario's servant warns her about Voss; killed → Sarne ambush on the deer trail), Ilsa's report/hide (Crown patrol: bluff with no skill check, or an extra soldier and no bluff) and ledger (Voss), Tamsin's Orrin (freed → one fewer cultist at the boss). Writes `key` ('sold'/'kept'), `opened`, `patrolHow`, `parentHint`, `bossDone`, echoed into the other three endings.
 - **Next:** Act 2, when the four meet in Corvane.
-- **Still open:** names for the Ashen Hand leaders and major NPCs. Wren's chapter uses placeholders: Mother Quell, Tobin Marsh, Nell Kestrel, Pike, Old Nan and Sable, Mother of Thorns.
+- **Named so far (keep these):** Act 1 NPCs as written in each chapter. Wren's are Mother Quell (Gallows Ford broker), Tobin Marsh (companion), Nell Kestrel (rival archer), Pike (fence), Old Nan (cook tent) and Sable, Mother of Thorns (Ashen Hand leader in the Thornwood, alongside Velka, the Ashen Voice, in Hearthdeep).
+- **Still open:** names for the Ashen Hand's top leadership and the Act 2 NPCs in Corvane.
 - **Balance note (bot sim, 100 runs, first-try boss wins on the shortest and a typical path):** Kael 10% / 71%, Wren 14% / 82%, Ilsa ~90%, Tamsin ~94%. Ilsa's and Tamsin's bosses rarely need a retry.
 
 ## Code layout

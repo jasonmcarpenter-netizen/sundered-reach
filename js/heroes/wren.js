@@ -1,5 +1,4 @@
 // ================= WREN'S CHAPTER: THE THORNWOOD =================
-// Names marked (placeholder) in CLAUDE.md are still open: Mother Quell, Tobin Marsh, Nell Kestrel, Thorn-Mother Sable.
 HEROES.wren = {name:'Wren', full:'Wren', race:'Half-Sylvari', role:'rogue', ptsPerLevel:5, row:'back', start:'w_intro',
   skillList:['bows','daggers','stealth','lockpick','survival','leadership','lore','armor','tough','wardlore'],
   cost: () => 1,
