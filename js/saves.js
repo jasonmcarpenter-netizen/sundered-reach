@@ -7,7 +7,7 @@ function openSaveCode(){
   out.value = json ? toSaveCode(json) : '';
   const inp = h('textarea', {class:'codebox', rows:4, placeholder:'Paste a save code here', 'aria-label':'Paste a save code'});
   modal('Save code',
-    h('p', {class:'muted'}, 'Your progress already follows you when you\u2019re signed in to Claude. A save code is a backup: copy it, then paste it into the game on another device.'),
+    h('p', {class:'muted'}, 'When you\u2019re signed in, your progress already follows you to every device. A save code is a backup: copy it, then paste it into the game on another device.'),
     json ? [out, h('button', {class:'btn', onclick: async () => { try { await navigator.clipboard.writeText(out.value); msg.textContent = 'Copied.'; } catch (e) { out.select(); msg.textContent = 'Select the code above and copy it.'; } }}, 'Copy save code')]
       : h('p', {class:'muted'}, 'There\u2019s no save on this device yet.'),
     h('div', {class:'sec'}, h('h3', {}, 'Load a save code'),
@@ -42,6 +42,15 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible' || !CloudSave.ready || C) return;
   const r = await CloudSave.pull(); if (r) syncFromCloud(r, false);
 });
-CloudSave.onStatus(() => { document.querySelectorAll('#cloudline').forEach(el => { el.textContent = CloudSave.label(); }); });
+// Sync status line plus the sign-in / sign-out button, used on the title screen and in the menu
+function cloudBox(cls){
+  const box = h('div', {class:'cloudbox', 'data-cls':cls || ''}, h('p', {class:cls || 'muted', role:'status'}, CloudSave.label()));
+  if (CloudSave.canSignIn) box.append(h('button', {class:'btn ghost', onclick: () => CloudSave.signIn()}, 'Sign in to sync'));
+  else if (CloudSave.canSignOut) box.append(h('button', {class:'linkbtn', onclick: () => CloudSave.signOut()}, 'Sign out'));
+  return box;
+}
+CloudSave.onStatus(() => { document.querySelectorAll('.cloudbox').forEach(el => el.replaceWith(cloudBox(el.getAttribute('data-cls')))); });
+// Signing in after start-up: same rule as at start-up, the newer of the online and local saves wins
+CloudSave.onSignIn(remote => syncFromCloud(remote, true));
 
 

@@ -274,7 +274,7 @@ function openJournal(){
 function openMenu(){
   const confirmBox = h('div');
   modal('Menu',
-    h('p', {class:'muted', id:'cloudline'}, CloudSave.label()),
+    cloudBox('muted'),
     h('p', {class:'muted'}, 'Each hero keeps their own place.'),
     h('div', {style:'display:flex;flex-direction:column;gap:8px'},
       h('button', {class:'btn', onclick: () => { closeModal(); C = null; screen = 'select'; render(true); }}, 'Switch hero'),
@@ -325,7 +325,7 @@ function renderTitle(){
             h('button', {class:'btn ghost', onclick: () => { confirmBox.innerHTML = ''; }}, 'Cancel')));
       }}, 'New game')),
     confirmBox,
-    h('p', {class:'cloudline', id:'cloudline'}, CloudSave.label()),
+    cloudBox('cloudline'),
     h('button', {class:'linkbtn', onclick: openSaveCode}, 'Use a save code')
   ));
 }
