@@ -378,17 +378,54 @@
     B.ch('Decide together'); B.ch(o.pillar === 'watched' ? 'Keep it secret' : 'Report it'); B.ch('Continue'); B.ch('End of Act 2');
     return notes;
   };
-  // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies
-  B.psim = function(xp, combatId, n, flags, gear){
+  // Act 2 chapter 2, from the end screen of chapter 1. o.way: 'pass' | 'stair' | 'drains' (falls back to the drains);
+  // o.force: Kael tears the grate off; o.breakLock / o.slow at the records; o.doorFight; o.hear; o.keystone
+  B.party2 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    [...document.querySelectorAll('.end .btn')].find(b => /Begin chapter 2/.test(b.textContent)).click();
+    if (S.scene !== 'a22_intro') throw new Error('A2·2 did not start: ' + S.scene);
+    notes.push('levels ' + PARTY.map(id => M.heroes[id].level).join('/') + ', crown ' + crownStanding() + ' ' + crownMood());
+    B.ch('Find a way');
+    let way = o.way;
+    if (way === 'pass'){ const l = first('Take Marrow', 'shard from Harrow', 'Corrin Sarne’s sealed', 'Tell her plainly'); if (l){ B.ch(l); B.ch('Into the palace'); } else way = 'drains'; }
+    if (way === 'stair'){ B.ch('Climb the Binding stair'); const l = first('Into the palace', 'Envoy Marrow wants', 'Wait for the change'); if (l) B.ch(l); else { B.ch('Think again'); way = 'drains'; } }
+    if (way === 'drains'){ B.ch('Go in by the palace drains'); B.ch(o.force || !B.has('Wren picks') ? 'Kael takes' : 'Wren picks'); await fight(); B.ch('Into the palace'); }
+    notes.push('way ' + S.flags.way + (S.flags.passHow ? '/' + S.flags.passHow : '') + (S.flags.stairHow ? '/' + S.flags.stairHow : '') + (S.flags.drainHow ? '/' + S.flags.drainHow : ''));
+    B.visit('a22_ante'); grab(); B.ch('Back');
+    B.visit('a22_records'); B.ch(o.breakLock ? 'Break the lock' : first('Use Dario', 'Wren opens', 'Ask Captain Orme', 'Break the lock'));
+    B.ch(o.slow ? 'Search the whole wall' : first('Ilsa reads', 'Wren looks', 'Search the whole wall')); grab(); B.ch('Back');
+    notes.push('records ' + S.flags.recordsIn + '/' + S.flags.recordsHow + (S.flags.alarm ? ' (alarm)' : ''));
+    B.spendParty(); restAt('a22_store');
+    B.visit('a22_door');
+    const quiet = !o.doorFight && first('Your Council took', 'Wait for the dice');
+    if (quiet){ B.ch(quiet); if (S.mode === 'scene') B.ch('Down to the undercroft'); }
+    else { B.ch('Fight your way'); await fight(); B.ch('Down to the undercroft'); }
+    notes.push('door ' + S.flags.doorHow);
+    B.visit('a22_hall'); grab(); B.ch('Ilsa opens the Concord'); B.ch('Back');
+    B.visit('a22_anchor');
+    const hear = o.hear && first('Wren puts her hand', 'Kael puts his scarred');
+    if (hear){ B.ch(hear); B.ch('Back'); } else B.ch('Look at the thing');
+    B.spendParty(); restAt('a22_niche');
+    B.visit('a22_root'); grab(); notes.push('boss at ' + PARTY.map(id => M.heroes[id].level).join('/') + (S.flags.heardFather ? ', heard ' + S.flags.heardFather : ''));
+    B.ch('Cut it back'); await fight();
+    B.ch('Listen'); B.ch('Decide together'); B.ch(o.keystone === 'bound' ? 'Hold him' : 'Release him'); B.ch('Climb back up'); B.ch('End of Act 2');
+    notes.push('keystone ' + S.flags.keystone + ', crown ' + crownStanding() + ' ' + crownMood());
+    notes.push(...B.endEchoes().slice(-4));
+    return notes;
+  };
+  // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
+  // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
+  B.psim = function(xp, combatId, n, flags, heroFlags){
     M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null, wren:null}}; S = null; C = null;
     PARTY.forEach(id => { beginHero(id, true); B.spend(HERO_BUILD[id][0]); gainXP(xp); B.spendAll(HERO_BUILD[id][1]);
       if (id === 'ilsa') S.flags.word = true; if (id === 'kael') S.gear.armor = 2; if (id === 'wren'){ S.gear.bow = 2; S.gear.armor = 1; }
-      restAll(); S.chapter = 3; S.mode = 'end'; });
+      Object.assign(S.flags, (heroFlags || {})[id] || {}); restAll(); S.chapter = 3; S.mode = 'end'; });
     M.party = partyState(); Object.assign(M.party.items, {draught:4, tonic:2, aether:2}); Object.assign(M.party.flags, flags || {});
     M.cur = 'party'; S = M.party; save();
     let wins = 0, rounds = 0;
     for (let i = 0; i < n; i++){ const t = B.trial(combatId); if (t.r === 'win') wins++; rounds += t.rounds; }
-    return `party L${M.heroes.kael.level} ${combatId}${flags ? ' ' + JSON.stringify(flags) : ''}: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%), avg ${Math.round(rounds / n)} rounds`;
+    return `party L${M.heroes.kael.level} ${combatId}${flags ? ' ' + JSON.stringify(flags) : ''}${heroFlags ? ' ' + JSON.stringify(heroFlags) : ''}: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%), avg ${Math.round(rounds / n)} rounds`;
   };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
@@ -421,6 +458,7 @@
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({calm:true, rite:'aurel'})).join(' | '));
       lines.push('     party engine: ' + (await B.partyTest()).join(' | '));
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'wren', shown:'ilsa', base:'gull', town:'fight', cache:true, ward:'wren', pillar:'watched'})).join(' | '));
+      if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'drains', force:true, slow:true, doorFight:true, hear:true, keystone:'released'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -435,6 +473,7 @@
       if (hasChapter('kael', 3)) lines.push('     kael3: ' + (await B.kael3({hoard:'quiet'})).join(' | '));
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({rite:'saved', slow:true})).join(' | '));
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'kael', shown:'tamsin', base:'hostel', pillar:'told'})).join(' | '));
+      if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'pass', keystone:'bound'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -476,7 +515,13 @@
     if (COMBATS.a21_boss){
       lines.push(B.psim(1460, 'a21_square', n));
       // party enemies scale to the party's level, so the boss should hold steady from level 8 to 12
-      for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}], [2060, null], [2660, null]]) lines.push(B.psim(xp, 'a21_boss', n, f));
+      for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}], [2060, null], [2660, null], [3860, null]]) lines.push(B.psim(xp, 'a21_boss', n, f));
+    }
+    // Act 2 ch2 (parties arrive at level 11–14): the drains and the undercroft door, then the Root (heard Wren's
+    // father or not; Tamsin's lantern cost), up to level 18 for a party that did every optional fight
+    if (COMBATS.a22_boss){
+      lines.push(B.psim(2660, 'a22_drains', n, {drainHow:'forced'}), B.psim(2660, 'a22_door', n, {alarm:true}));
+      for (const [xp, f, hf] of [[2360, null], [2660, null], [2660, {heardFather:'wren'}], [2660, null, {tamsin:{lanternCost:true}}], [3260, null], [4460, null]]) lines.push(B.psim(xp, 'a22_boss', n, f, hf));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

@@ -16,7 +16,10 @@ function crownStanding(){
   if (w.fragment === 'crown') n++; if (w.barge === 'crown') n++; if (w.patrolHow3 === 'fight') n--;
   if (i.magister === 'crown') n++;
   if (t.order === 'keepers') n++; if (t.postHow === 'fight') n--;
-  if (S.flags && S.flags.pillar === 'told') n++;
+  const f = S.flags || {};
+  if (f.pillar === 'told') n++;
+  // A2·2: seen breaking into the palace; releasing the Keystone's anchor in front of the Crown's captain
+  if (f.brokeIn) n--; if (f.keystone === 'released' && f.way === 'pass') n--;
   return n;
 }
 const crownMood = () => { const n = crownStanding(); return n >= 4 ? 'warm' : n >= 1 ? 'wary' : 'cold'; };

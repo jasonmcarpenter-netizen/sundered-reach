@@ -170,12 +170,15 @@ renderSelect = function(){
 // ---------- level scaling for party fights ----------
 // Party enemies are tuned for a party at PARTY_TUNED_LEVEL (or a combat's own `level`). A party that's ahead or behind
 // (more or fewer optional fights in Act 1, catch-up) meets enemies scaled to its average level, so a boss stays a
-// boss. Health scales faster than damage, so fights get longer rather than spikier. Never below 70%.
+// boss. Health scales faster than damage, so fights get longer rather than spikier. Never below 70%, and no more than
+// PARTY_SCALE_CAP levels' worth up: heroes gain less per level past 12, so a steeper or uncapped curve made bosses
+// harder the more a party had levelled.
 const PARTY_TUNED_LEVEL = 9;
-const PARTY_SCALE = {hp:0.12, dmg:0.06};
+const PARTY_SCALE = {hp:0.08, dmg:0.05};
+const PARTY_SCALE_CAP = 4; // levels above the tuning level that still scale; past it, being ahead pays off
 function partyLevel(){ const ls = (M.party ? M.party.members : PARTY).map(id => M.heroes[id].level); return ls.reduce((a, b) => a + b, 0) / ls.length; }
 function partyScaleFactors(def){
-  const d = partyLevel() - (def.level || PARTY_TUNED_LEVEL);
+  const d = Math.min(PARTY_SCALE_CAP, partyLevel() - (def.level || PARTY_TUNED_LEVEL));
   return {hp: Math.max(0.7, 1 + PARTY_SCALE.hp * d), dmg: Math.max(0.7, 1 + PARTY_SCALE.dmg * d)};
 }
 function scalePartyEnemies(enemies, def){
