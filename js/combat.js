@@ -51,6 +51,7 @@ function startCombat(id){
     }
   }
   C = {id, def, snap, party:isPartyState(S), units:heroes.concat(enemies), order:[], idx:0, round:0, log:[def.intro], phase:'wait', active:null, pick:null, over:null, gen:0, used:{}};
+  if (C.party) scalePartyEnemies(enemies, def);
   render(true);
   later(newRound, 350);
 }

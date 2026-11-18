@@ -475,7 +475,8 @@
     // Act 2 ch1: party fights at the levels players reach (level 8–9; the hostile route arrives higher)
     if (COMBATS.a21_boss){
       lines.push(B.psim(1460, 'a21_square', n));
-      for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}]]) lines.push(B.psim(xp, 'a21_boss', n, f));
+      // party enemies scale to the party's level, so the boss should hold steady from level 8 to 12
+      for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}], [2060, null], [2660, null]]) lines.push(B.psim(xp, 'a21_boss', n, f));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

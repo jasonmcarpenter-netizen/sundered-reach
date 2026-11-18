@@ -166,3 +166,20 @@ renderSelect = function(){
     h('div', {class:'hstatus'}, label),
     h('button', {class:'btn', disabled: !st.can, onclick: () => { if (st.kind === 'next'){ beginParty(); beginPartyChapter(st.n); } else beginParty(); }}, btn)));
 };
+
+// ---------- level scaling for party fights ----------
+// Party enemies are tuned for a party at PARTY_TUNED_LEVEL (or a combat's own `level`). A party that's ahead or behind
+// (more or fewer optional fights in Act 1, catch-up) meets enemies scaled to its average level, so a boss stays a
+// boss. Health scales faster than damage, so fights get longer rather than spikier. Never below 70%.
+const PARTY_TUNED_LEVEL = 9;
+const PARTY_SCALE = {hp:0.12, dmg:0.06};
+function partyLevel(){ const ls = (M.party ? M.party.members : PARTY).map(id => M.heroes[id].level); return ls.reduce((a, b) => a + b, 0) / ls.length; }
+function partyScaleFactors(def){
+  const d = partyLevel() - (def.level || PARTY_TUNED_LEVEL);
+  return {hp: Math.max(0.7, 1 + PARTY_SCALE.hp * d), dmg: Math.max(0.7, 1 + PARTY_SCALE.dmg * d)};
+}
+function scalePartyEnemies(enemies, def){
+  const f = partyScaleFactors(def);
+  if (f.hp === 1 && f.dmg === 1) return;
+  enemies.forEach(e => { e.hp = e.max = Math.round(e.max * f.hp); e.dmg = e.dmg.map(x => Math.round(x * f.dmg)); });
+}
