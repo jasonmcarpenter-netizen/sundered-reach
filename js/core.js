@@ -104,6 +104,7 @@ const H = () => HEROES[S.hero];
 const BUILT = ['kael', 'ilsa', 'tamsin', 'wren'];
 const XP_AT = [0, 0, 80, 200, 380, 600, 860];
 const nextXP = l => XP_AT[l + 1] || (860 + (l - 5) * 300);
+const LEVEL_CAP = 20; // Game 1's cap (design doc); experience past it still counts, but no more levels
 function sk(id){ return S.pc.skills[id] || 0; }
 function chk(id, n){ return { req: () => sk(id) >= n, tag: SKILLS[id].name + ' ' + n }; }
 
@@ -136,7 +137,7 @@ function healKael(n){ S.pc.hp = Math.min(pcMax(), S.pc.hp + n); }
 function restAll(){ S.pc.hp = pcMax(); S.pc.sp = spMax(); if (S.ally.joined) S.ally.hp = allyMax(); }
 function gainXP(n){
   S.xp += n; const ups = [];
-  while (S.xp >= nextXP(S.level)){
+  while (S.level < LEVEL_CAP && S.xp >= nextXP(S.level)){
     S.level++; S.skillPts += H().ptsPerLevel;
     if (S.level % 3 === 0) S.attrPts += 1;
     restAll();

@@ -344,11 +344,49 @@
     }
     return notes;
   };
+  // The Act 3 pair engine, run after Act 2 is complete: throwaway chapters for both pairs, the split pack, a pair fight
+  // with companions, the one-chapter lock between pairs, the chapter end's next buttons, save and reload. Removes it all.
+  B.pairTest = async () => {
+    const notes = [], ok = (c, t) => { if (!c) fail('pairs: ' + t); };
+    ok(act3Ready(), 'Act 3 not ready after Act 2');
+    const real = {s1:HEROES.south.chapters[1], s2:HEROES.south.chapters[2], w1:HEROES.west.chapters[1]};
+    const gold0 = M.party.gold, items0 = Object.assign({}, M.party.items), cur0 = M.cur, pairs0 = M.pairs;
+    delete M.pairs;
+    HEROES.south.chapters[1] = {title:'Pair test', start:'zz_pair'}; HEROES.south.chapters[2] = {title:'Pair test 2', start:'zz_pair'}; HEROES.west.chapters[1] = {title:'Pair test', start:'zz_pair'};
+    SCENES.zz_pair = {view: () => ({title:'Pair test', text:['Two heroes and their companions.'], choices:[{label:'Fight', act: () => startCombat('zz_pair')}, {label:'End it', act: () => { S.mode = 'end'; save(); render(true); }}]})};
+    COMBATS.zz_pair = {title:'Pair test', level:16, enemies:() => ['kindler', 'handcantor'], lethal:true, win:'zz_pair', back:'zz_pair', intro:'A test fight.'};
+    try {
+      screen = 'select'; render(true);
+      const card = [...document.querySelectorAll('.hero.party')].find(c => c.textContent.includes('Kael and Wren'));
+      ok(card && !card.classList.contains('locked'), 'no open south card');
+      card.querySelector('.btn').click();
+      ok(S === M.pairs.south && S.scene === 'zz_pair', 'south did not start');
+      ok(M.pairs.south.gold + M.pairs.west.gold === gold0 && M.party.gold === 0, 'pack not split');
+      B.ch('Fight');
+      const hs = C.units.filter(u => u.side === 'hero');
+      ok(hs.length === 4 && hs.filter(u => u.owner).length === 2, 'pair fight lacks its companions');
+      notes.push('south fights with ' + hs.map(u => u.name).join(', '));
+      await fight(); B.ch('End it');
+      ok(pairStep('south').kind === 'wait', 'south may run two chapters ahead');
+      [...document.querySelectorAll('.end .btn')].find(b => b.textContent.includes('Ilsa and Tamsin')).click();
+      ok(S === M.pairs.west, 'chapter end did not switch to the west');
+      B.ch('Fight'); notes.push('west fights with ' + C.units.filter(u => u.side === 'hero').map(u => u.name).join(', ')); await fight(); B.ch('End it');
+      ok(pairStep('south').kind === 'next', 'south not unlocked by the west');
+      const saved = JSON.stringify(M); M = JSON.parse(saved); S = null; screen = 'select'; render(true);
+      ok([...document.querySelectorAll('.hero.party .hstatus')].some(e => /Ready: chapter 2/.test(e.textContent)), 'reload lost the pairs');
+      notes.push('split pack, companions, lock, switch, reload: ok');
+    } finally {
+      ['s1', 's2', 'w1'].forEach(k => { const [id, n] = k[0] === 's' ? ['south', +k[1]] : ['west', +k[1]]; if (real[k]) HEROES[id].chapters[n] = real[k]; else delete HEROES[id].chapters[n]; });
+      delete SCENES.zz_pair; delete COMBATS.zz_pair;
+      M.party.gold = gold0; M.party.items = items0; if (pairs0) M.pairs = pairs0; else delete M.pairs; M.cur = cur0; S = groupState(M.cur) || M.heroes[M.cur]; save();
+    }
+    return notes;
+  };
   // ---- Act 2 (party) ----
   // How the bot builds each hero (utility skills first, like a player), for the party route and party sims
   const HERO_BUILD = {kael:[['leadership','lore','lockpick','survival'], ['blades','tough']], ilsa:[['lore','lockpick','leadership','stealth'], ['arcane','spellcraft']],
     tamsin:[['divine','leadership','maces','survival'], ['divine','maces']], wren:[['lockpick','lore','leadership','stealth'], ['bows','tough']]};
-  B.spendParty = () => { M.party.members.forEach(id => asHeroState(id, () => B.spendAll(HERO_BUILD[id][1]))); };
+  B.spendParty = () => { (curGroup() || M.party).members.forEach(id => asHeroState(id, () => B.spendAll(HERO_BUILD[id][1]))); };
   B.party1 = async (o) => {
     const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
     const st = partyStep(); if (st.kind !== 'start') throw new Error('Act 2 not startable: ' + JSON.stringify(st));
@@ -490,18 +528,58 @@
     } finally { a24Betrayer = real; }
     return notes;
   };
+  // ---- Act 3 (pairs) ----
+  // South 1, from the select screen once Act 2 is done. o.gateFight, o.countFight, o.oszin, o.tunnel ('lantern' | 'map' |
+  // 'grey'), o.shards ('lantern' | 'ward' | 'grey'), o.ledger ('west' | 'kept')
+  B.s1 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    screen = 'select'; render(true);
+    [...document.querySelectorAll('.hero.party')].find(c => c.textContent.includes('Act 3: Kael and Wren')).querySelector('.btn').click();
+    if (S.scene !== 'a3s1_intro') throw new Error('S1 did not start: ' + S.scene);
+    notes.push('levels ' + S.members.map(id => M.heroes[id].level).join('/') + ', gold ' + S.gold + ', council ' + partyF().council);
+    B.ch('Into the city');
+    B.visit('a3s1_infirmary'); if (B.has('Let Brannoc')) B.ch('Let Brannoc'); B.ch('Back');
+    B.visit('a3s1_gate'); grab();
+    const g = o.gateFight ? null : first('Go through on the writ', 'Kael walks into');
+    if (g) B.ch(g); else { B.ch('Take the gate'); await fight(); }
+    B.ch('Back'); notes.push('gate ' + S.flags.gateHow + (S.flags.tallyHelp ? ', Iron Tally' : ''));
+    B.visit('a3s1_counting'); grab();
+    const c = o.countFight ? null : first('Wren picks', 'Walk in like');
+    if (c) B.ch(c); else { B.ch('Go in hard'); await fight(); B.ch('Read it'); }
+    B.ch('Back'); notes.push('ledger ' + S.flags.ledger);
+    if (o.oszin){ B.visit('a3s1_oszin'); B.ch('Take the map'); B.ch('Back'); }
+    B.spendParty(); restAt('a3s1_infirmary');
+    B.visit('a3s1_down'); B.ch('Down under');
+    B.visit('a3s1_tunnels');
+    const tw = o.tunnel === 'grey' ? null : o.tunnel === 'map' ? first('Go the long way') : first('Unhood the lantern');
+    if (tw) B.ch(tw); else { B.ch('Push straight'); await fight(); }
+    B.ch('Back'); notes.push('tunnels ' + S.flags.tunnelHow + ', lantern ' + S.flags.lantern);
+    B.spendParty(); restAt('a3s1_cells');
+    B.visit('a3s1_stone'); grab(); notes.push('boss at ' + S.members.map(id => M.heroes[id].level).join('/'));
+    B.ch('Fight'); await fight();
+    B.ch('The shards');
+    B.ch(o.shards === 'ward' && B.has('Kael lays') ? 'Kael lays' : o.shards === 'grey' ? 'Load them as' : first('Set the lantern', 'Load them as'));
+    B.ch(o.ledger === 'west' ? 'Send Tobin' : 'Keep it.'); B.ch('End of chapter');
+    notes.push('shards ' + S.flags.shardsVarrow + ', ledger ' + S.flags.s1Ledger + ', lantern ' + S.flags.lantern);
+    notes.push(...B.endEchoes().slice(-3));
+    return notes;
+  };
   // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
   // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
-  B.psim = function(xp, combatId, n, flags, heroFlags){
+  // group: 'south' | 'west' simulates an Act 3 pair fight (two heroes and their companions) instead of the party
+  B.psim = function(xp, combatId, n, flags, heroFlags, group){
     M = {v:2, cur:null, heroes:{kael:null, ilsa:null, tamsin:null, wren:null}}; S = null; C = null;
     PARTY.forEach(id => { beginHero(id, true); B.spend(HERO_BUILD[id][0]); gainXP(xp); B.spendAll(HERO_BUILD[id][1]);
       if (id === 'ilsa') S.flags.word = true; if (id === 'kael') S.gear.armor = 2; if (id === 'wren'){ S.gear.bow = 2; S.gear.armor = 1; }
-      Object.assign(S.flags, (heroFlags || {})[id] || {}); restAll(); S.chapter = 3; S.mode = 'end'; });
+      S.ally.joined = true; Object.assign(S.flags, (heroFlags || {})[id] || {}); restAll(); S.chapter = 3; S.mode = 'end'; });
     M.party = partyState(); Object.assign(M.party.items, {draught:4, tonic:2, aether:2}); Object.assign(M.party.flags, flags || {});
-    M.cur = 'party'; S = M.party; save();
+    M.cur = 'party'; S = M.party;
+    if (group){ M.party.chapter = 4; M.party.mode = 'end'; const P = Object.assign(partyState(), {hero:group, members:PAIRS[group].slice(), allies:true}); Object.assign(P.items, {draught:3, tonic:1, aether:2}); Object.assign(P.flags, flags || {}); M.pairs = {[group]:P}; M.cur = group; S = P; }
+    save();
     let wins = 0, rounds = 0;
     for (let i = 0; i < n; i++){ const t = B.trial(combatId); if (t.r === 'win') wins++; rounds += t.rounds; }
-    return `party L${M.heroes.kael.level} ${combatId}${flags ? ' ' + JSON.stringify(flags) : ''}${heroFlags ? ' ' + JSON.stringify(heroFlags) : ''}: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%), avg ${Math.round(rounds / n)} rounds`;
+    return `${group || "party"} L${M.heroes[(group ? PAIRS[group] : PARTY)[0]].level} ${combatId}${flags ? ' ' + JSON.stringify(flags) : ''}${heroFlags ? ' ' + JSON.stringify(heroFlags) : ''}: first-try wins ${wins}/${n} (${Math.round(wins / n * 100)}%), avg ${Math.round(rounds / n)} rounds`;
   };
   B.endEchoes = () => [...document.querySelectorAll('.end .echo')].map(e => e.textContent.slice(0, 90));
 
@@ -537,6 +615,8 @@
       if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'drains', force:true, slow:true, doorFight:true, hear:true, keystone:'released'})).join(' | '));
       if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'orrin', ware:'fight', steps:true, talk:true, plan:'trap', evidence:'kept'})).join(' | '));
       if (hasChapter('party', 4)) lines.push('     act2 ch4: ' + (await B.party4({king:true, council:'broken'})).join(' | '));
+      if (hasChapter('party', 4)) lines.push('     pair engine: ' + (await B.pairTest()).join(' | '));
+      if (hasChapter('south', 1)) lines.push('     act3 s1: ' + (await B.s1({gateFight:true, oszin:true, tunnel:'grey', shards:'ward', ledger:'west'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -555,7 +635,8 @@
       if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'quell', quellPay:true, listen:true, ware:'talk', plan:'struck', evidence:'marrow'})).join(' | '));
       if (hasChapter('party', 4)){
         lines.push('     act2 ch4: ' + (await B.party4({orme:true, council:'bargain'})).join(' | '));
-        for (const b of ['dario', 'quell']) lines.push(`     act2 ch4 (${b} forced): ` + (await B.party4({restart:true, betrayer:b, king:true, council:'broken'})).join(' | '));
+        for (const [b, council] of [['dario', 'broken'], ['quell', 'bargain']]) lines.push(`     act2 ch4 (${b} forced): ` + (await B.party4({restart:true, betrayer:b, king:true, council})).join(' | '));
+        if (hasChapter('south', 1)) lines.push('     act3 s1: ' + (await B.s1({countFight:true, ledger:'kept'})).join(' | '));
       }
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
@@ -619,6 +700,12 @@
       lines.push(B.psim(3560, 'a24_hall', n, {betrayer:'dario'}), B.psim(3560, 'a24_chamber', n), B.psim(3560, 'a24_root', n), B.psim(3560, 'a24_root', n, {betrayer:'quell'}));
       for (const b of ['marrow', 'hale', 'dario', 'quell']) lines.push(B.psim(3560, 'a24_boss', n, {betrayer:b}));
       for (const [xp, f] of [[2960, {betrayer:'hale'}], [3560, {betrayer:'hale', caseScore:6, kingSpoke:true}], [4160, {betrayer:'hale'}], [4760, {betrayer:'hale'}]]) lines.push(B.psim(xp, 'a24_boss', n, f));
+    }
+    // Act 3 south 1 (pairs arrive at about level 14–18): the mid fights, then the Bull of Varrow with and without the
+    // Iron Tally, and with the grey dragged down the tunnels
+    if (COMBATS.a3s1_boss){
+      for (const id of ['a3s1_gate', 'a3s1_counting', 'a3s1_tunnels']) lines.push(B.psim(3860, id, n, null, {kael:{captain:'handed'}}, 'south'));
+      for (const [xp, f] of [[3260, null], [3860, null], [3860, {tallyHelp:true}], [3860, {tunnelHow:'grey'}], [4460, null]]) lines.push(B.psim(xp, 'a3s1_boss', n, f, null, 'south'));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

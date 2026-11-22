@@ -35,7 +35,7 @@ Object.assign(ACTIONS, {
     run(u){ C.used.vanish = true; u.st.hidden = 1; u.st.poised = true; log('Wren is simply not there anymore. Her next shot won’t miss.'); }},
   // Tobin
   haft:{label:'Boathook', sub:'Melee', target:'melee', known: u => isAlly(u, 'tobin'), can: front, why:'Front row only', run(u, t){ strike(u, t, {label:'boathook'}); }},
-  cover:{label:'Cover', sub:'Take her hits', target:null, cd:3, known: u => isAlly(u, 'tobin'), can: () => U('pc').hp > 0,
+  cover:{label:'Cover', sub:'Take her hits', target:null, cd:3, known: u => isAlly(u, 'tobin'), can: u => protectee(u).hp > 0,
     run(u){ u.st.guard = 2; log('Tobin plants himself between Wren and the enemy. Blows meant for her will hit him instead.'); }}
 });
 

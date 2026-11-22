@@ -40,9 +40,9 @@
   function item(id, tid){ chooseItem(id); pickTarget(tid); }
   const low = arr => arr.slice().sort((a, b) => a.hp - b.hp)[0];
   function decide(){
-    const u = U(C.active); const es = enemiesAlive(); const hs = heroesAlive(); const pc = U('pc');
+    const u = U(C.active); const es = enemiesAlive(); const hs = heroesAlive(); const pc = (C.party && u.owner) ? U(u.owner) : U('pc');
     // a hero unit acts by its own hero's tactic; supplies come from the party pack in Act 2
-    const hero = u.hero, items = C.party ? M.party.items : S.items, me = u.id;
+    const hero = u.hero, items = S.items, me = u.id; // in a group fight S is the group, whose pack is shared
     const winding = es.find(e => e.winding);
     const hurt = low(hs.filter(x => pct(x) < 0.5));
     if (hero){

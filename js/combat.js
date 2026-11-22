@@ -10,14 +10,16 @@ function toMap(id){ S.mode = 'map'; S.map = id; save(); render(true); }
 // Act 2 plays as a party: S is then M.party (hero 'party'), which holds the shared story state, while each hero's
 // level, skills, gear and health stay in M.heroes[id]. The stat functions (pcMax, sk, …) read S, so anything about
 // one hero runs inside asHeroState, which points S at that hero for the length of one call.
-const isPartyState = s => !!(s && s.hero === 'party');
+// A group state (the Act 2 party or an Act 3 pair) has a members list; a hero's state doesn't
+const isPartyState = s => !!(s && Array.isArray(s.members));
 function asHeroState(hid, fn){
   if (!M || !M.heroes[hid] || (S && S.hero === hid)) return fn();
   const keep = S; S = M.heroes[hid];
   try { return fn(); } finally { S = keep; }
 }
 // A unit's action or stat lookup: in a party fight, under that hero's state; in a solo fight S already is the hero
-function asHero(u, fn){ return (C && C.party && u && u.hero) ? asHeroState(u.hero, fn) : fn(); }
+// A companion in a group fight runs as its owner (u.owner), so S.level and S.ally are the owner's
+function asHero(u, fn){ const id = u && (u.hero || u.owner); return (C && C.party && id) ? asHeroState(id, fn) : fn(); }
 
 // ---------- combat ----------
 function startCombat(id){
@@ -45,6 +47,12 @@ function startCombat(id){
     // A party fight can name its own heroes (def.members), for when the party is split
     const who = def.members ? def.members() : P.members;
     heroes = who.map(hid => Object.assign(asHeroState(hid, () => heroUnit(hid, hid)), {row:(P.rows && P.rows[hid]) || HEROES[hid].row}));
+    // Act 3 pairs fight beside their companions, toughened to party scale (PAIR_ALLY in party.js); they start each fight fresh
+    if (P.allies) who.forEach(hid => asHeroState(hid, () => {
+      if (!S.ally || !S.ally.joined) return;
+      const a = ALLIES[S.ally.id], mx = Math.round(allyMax() * PAIR_ALLY.hp);
+      heroes.push({id:'ally_' + hid, allyId:S.ally.id, owner:hid, side:'hero', name:a.name, hp:mx, max:mx, sp:0, spMax:0, row:a.row, init:a.init, dodge:a.dodge, armor:a.armor, dmgMult:PAIR_ALLY.dmg, st:{}, cd:{}});
+    }));
   } else {
     heroes = [heroUnit('pc', S.hero)];
     if (S.ally.joined){
@@ -53,7 +61,7 @@ function startCombat(id){
     }
   }
   C = {id, def, snap, party:isPartyState(S), units:heroes.concat(enemies), order:[], idx:0, round:0, log:[def.intro], phase:'wait', active:null, pick:null, over:null, gen:0, used:{}};
-  if (C.party) scalePartyEnemies(enemies, def, heroes.map(u => u.hero));
+  if (C.party) scalePartyEnemies(enemies, def, heroes.filter(u => u.hero).map(u => u.hero));
   render(true);
   later(newRound, 350);
 }
@@ -112,7 +120,7 @@ function step(){
 }
 function checkEnd(){
   if (C.over) return true;
-  if (C.party ? !heroesAlive().length : U('pc').hp <= 0){ endCombat('lose'); return true; }
+  if (C.party ? !heroesAlive().some(u => u.hero) : U('pc').hp <= 0){ endCombat('lose'); return true; }
   if (enemiesAlive().length === 0){ endCombat('win'); return true; }
   return false;
 }
@@ -126,7 +134,7 @@ function strike(u, t, o){
     else if (o.holy){ acc = divineAcc() - Math.floor(t.dodge / 2); [lo, hi] = divineDmg(); }
     else if (o.bow){ acc = bowAcc() - t.dodge; [lo, hi] = bowDmg(); }
     else { acc = pcAcc() - t.dodge; [lo, hi] = pcDmg(); }
-  } else { acc = 72 - t.dodge; [lo, hi] = ALLIES[u.allyId].dmg(); }
+  } else { acc = 72 - t.dodge; [lo, hi] = ALLIES[u.allyId].dmg().map(x => Math.round(x * (u.dmgMult || 1))); }
   acc = clamp(acc + (u.st.inspired ? 10 : 0) + (o.accMod || 0), 15, 95);
   const lbl = o.label ? `${u.name}’s ${o.label}` : u.name;
   const sure = !!u.st.poised; // Wren after Vanish: her next attack can't miss and always crits
@@ -150,6 +158,8 @@ function breakWind(t){
 }
 const isPc = (u, hero) => u.hero === hero;
 const isAlly = (u, id) => u.allyId === id;
+// The hero a companion guards: its owner in a group fight, the hero in a solo one
+const protectee = u => (C.party && u.owner) ? U(u.owner) : U('pc');
 const front = u => u.row === 'front';
 const ACTIONS = {
   // Kael
@@ -182,8 +192,8 @@ const ACTIONS = {
     run(u, t){ const n = 9 + S.level; t.hp = Math.min(t.max, t.hp + n); delete t.st.bleed; log(`Brannoc bandages ${t.id === u.id ? 'himself' : t.name} for ${n}.`); }},
   // Hask
   hammer:{label:'Hammer', sub:'Melee', target:'melee', known: u => isAlly(u, 'hask'), can: front, why:'Front row only', run(u, t){ strike(u, t, {label:'hammer'}); }},
-  guard:{label:'Guard', sub:'Take her hits', target:null, cd:3, known: u => isAlly(u, 'hask'), can: () => U('pc').hp > 0,
-    run(u){ u.st.guard = 2; log(`Hask plants himself in front of ${U('pc').name}. Blows meant for her will hit him instead.`); }},
+  guard:{label:'Guard', sub:'Take her hits', target:null, cd:3, known: u => isAlly(u, 'hask'), can: u => protectee(u).hp > 0,
+    run(u){ u.st.guard = 2; log(`Hask plants himself in front of ${protectee(u).name}. Blows meant for her will hit him instead.`); }},
   // Everyone
   defend:{label:'Defend', sub:'Halve damage', target:null, known: () => true, can: () => true,
     run(u){ u.st.defend = 1; log(`${u.name} braces for the next blow.`); }},
@@ -231,7 +241,7 @@ function finishTurn(){ C.pick = null; C.phase = 'wait'; C.idx++; render(); if (!
 
 // enemy rules
 function enemyStrike(e, t, mult, sp, aoe){
-  if (!aoe && t.id === 'pc'){ const a = U('ally'); if (a && a.hp > 0 && a.st.guard){ log(`${a.name} takes the blow meant for ${t.name}.`); t = a; } }
+  if (!aoe && (t.id === 'pc' || (C.party && t.hero))){ const a = C.party ? C.units.find(x => x.owner === t.hero) : U('ally'); if (a && a.hp > 0 && a.st.guard){ log(`${a.name} takes the blow meant for ${t.name}.`); t = a; } }
   const acc = clamp(e.acc - t.dodge - (t.st.defend ? 10 : 0), 15, 95);
   if (rand(100) >= acc){ log(`${e.name}${sp ? '’s ' + sp.name : ''} misses ${t.name}.`); return; }
   let d = ri(e.dmg[0], e.dmg[1]) * mult;
@@ -302,7 +312,7 @@ function leaveCombat(){
   if (over.next){ S.mode = 'scene'; S.scene = over.next; } else S.mode = 'map';
   save(); render(true);
 }
-function restoreSnap(){ S = JSON.parse(C.snap); if (isPartyState(S)) M.party = S; else M.heroes[M.cur] = S; }
+function restoreSnap(){ S = JSON.parse(C.snap); if (isPartyState(S)) storeGroup(S); else M.heroes[M.cur] = S; }
 function retryCombat(){ const id = C.id; restoreSnap(); C = null; startCombat(id); }
 function stepBack(){ const id = C.id; restoreSnap(); C = null; S.combatId = null; S.mode = 'scene'; S.scene = COMBATS[id].back; save(); render(true); }
 
