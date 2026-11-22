@@ -558,18 +558,18 @@
       // party enemies scale to the party's level, so the boss should hold steady from level 8 to 12
       for (const [xp, f] of [[1460, null], [1760, null], [1760, {wardRead:'kael'}], [2060, null], [2660, null], [3860, null]]) lines.push(B.psim(xp, 'a21_boss', n, f));
     }
-    // Act 2 ch2 (parties arrive at level 11–14): the drains and the undercroft door, then the Root (heard Wren's
+    // Act 2 ch2 (parties arrive at level 10–13): the drains and the undercroft door, then the Root (heard Wren's
     // father or not; Tamsin's lantern cost), up to level 18 for a party that did every optional fight
     if (COMBATS.a22_boss){
-      lines.push(B.psim(2660, 'a22_drains', n, {drainHow:'forced'}), B.psim(2660, 'a22_door', n, {alarm:true}));
-      for (const [xp, f, hf] of [[2360, null], [2660, null], [2660, {heardFather:'wren'}], [2660, null, {tamsin:{lanternCost:true}}], [3260, null], [4460, null]]) lines.push(B.psim(xp, 'a22_boss', n, f, hf));
+      lines.push(B.psim(2360, 'a22_drains', n, {drainHow:'forced'}), B.psim(2360, 'a22_door', n, {alarm:true}));
+      for (const [xp, f, hf] of [[2060, null], [2360, null], [2360, {heardFather:'wren'}], [2360, null, {tamsin:{lanternCost:true}}], [2960, null], [4460, null]]) lines.push(B.psim(xp, 'a22_boss', n, f, hf));
     }
-    // Act 2 ch3 (parties arrive at about level 14–18): the mid fights, then the Pale Cantor: hardest (Orrin judged, the
+    // Act 2 ch3 (parties arrive at about level 12–16): the mid fights, then the Pale Cantor: hardest (Orrin judged, the
     // Kindled, the river-priests feeding her hymn), steps cleared, and easiest (Orrin freed and leading, steps cleared)
     if (COMBATS.a23_boss){
-      for (const id of ['a23_watch', 'a23_warehouse', 'a23_steps', 'a23_ossuary']) lines.push(B.psim(3860, id, n));
+      for (const id of ['a23_watch', 'a23_warehouse', 'a23_steps', 'a23_ossuary']) lines.push(B.psim(3260, id, n));
       const easy = [{lead:'orrin', stepsDone:true}, {tamsin:{orrin:'freed'}}];
-      for (const [xp, f, hf] of [[3260, null], [3860, null], [3860, {stepsDone:true}], [3860, ...easy], [4460, null], [5960, null]]) lines.push(B.psim(xp, 'a23_boss', n, f, hf));
+      for (const [xp, f, hf] of [[2660, null], [3260, null], [3260, {stepsDone:true}], [3260, ...easy], [3860, null], [4460, null]]) lines.push(B.psim(xp, 'a23_boss', n, f, hf));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

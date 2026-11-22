@@ -346,7 +346,7 @@ Object.assign(MAPS, {
 });
 
 Object.assign(ENEMIES, {
-  // Party enemies, tuned for a level 12 party (parties reach A2·2 at 11–14; scaled by scalePartyEnemies)
+  // Party enemies, tuned for a level 11 party (parties reach A2·2 at 10–13; scaled by scalePartyEnemies)
   draincrawler:{name:'Drain-Crawler', hp:250, dmg:[34,40], acc:72, dodge:6, armor:1, init:6, xp:45, hollow:true, greyChance:20},
   drainmother:{name:'The Drain-Mother', hp:540, dmg:[38,44], acc:72, dodge:2, armor:2, init:3, xp:120, hollow:true,
     spec:{every:3, name:'Flood', windup:'{n} heaves, and the grey water in the drain rises toward you.', mult:1.5, aoe:true}},
@@ -364,13 +364,13 @@ Object.assign(ENEMIES, {
     spec:{every:2, name:'Grey Tide', windup:'{n} pulses, but something in the stone pushes back, and the grey comes up thinner.', mult:1.8, aoe:true, grey:2}}
 });
 Object.assign(COMBATS, {
-  a22_drains:{title:'The Palace Drains', level:12, lethal:true, win:'a22_drainsWin', back:'a22_drains',
+  a22_drains:{title:'The Palace Drains', level:11, lethal:true, win:'a22_drainsWin', back:'a22_drains',
     enemies:() => ['draincrawler', 'draincrawler', 'drainmother'].concat(S.flags.drainHow === 'forced' ? ['draincrawler'] : []),
     intro:'Things come up out of the grey water, many-legged and slick.'},
-  a22_door:{title:'The Undercroft Door', level:12, lethal:true, win:'a22_doorWin', back:'a22_door',
+  a22_door:{title:'The Undercroft Door', level:11, lethal:true, win:'a22_doorWin', back:'a22_door',
     enemies:() => ['palaceguard', 'palaceguard', 'orme', 'palacebow'].concat(S.flags.alarm ? ['palaceguard'] : []),
     intro:'“Take them alive,” says Captain Orme, and draws.'},
-  a22_boss:{title:'The Root of the Hollow', level:12, lethal:true, win:'a22_bossWin', back:'a22_root',
+  a22_boss:{title:'The Root of the Hollow', level:11, lethal:true, win:'a22_bossWin', back:'a22_root',
     enemies:() => ['roottendril', 'roottendril', 'greyspawn', S.flags.heardFather ? 'rootWeak' : 'root'],
     intro:'The tendrils lift from the stone, and the Root pulses.'}
 });

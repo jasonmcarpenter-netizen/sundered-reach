@@ -280,8 +280,8 @@ SCENES.a23_down = {view: () => ({title:'The Coal-Chute', text:[`Behind the bone-
 SCENES.a23_up = {view: () => ({title:'The Coal-Chute', text:[`The chute goes up to the Ash Market.`], choices:[{label:'Up to the Ash Market', act: () => toMap('a23_market')}, back()]})};
 
 Object.assign(ENEMIES, {
-  // Party enemies, tuned for a level 16 party (parties reach A2·3 at about 14–18)
-  kindler:{name:'Kindled Zealot', hp:400, dmg:[42,48], acc:74, dodge:6, armor:2, init:6, xp:55},
+  // Party enemies, tuned for a level 14 party (parties reach A2·3 at about 12–16)
+  kindler:{name:'Kindled Zealot', hp:360, dmg:[42,48], acc:74, dodge:6, armor:2, init:6, xp:55},
   handcantor:{name:'Ashen Hand Cantor', hp:270, dmg:[38,42], acc:74, dodge:6, armor:0, init:5, xp:55, ranged:true, row:'back', greyChance:25},
   handconvert:{name:'Grey Convert', hp:300, dmg:[38,42], acc:70, dodge:2, armor:0, init:3, xp:45, hollow:true, cleanse:true, greyChance:20},
   sarnecarl:{name:'Sarne Housecarl', hp:400, dmg:[42,48], acc:74, dodge:4, armor:3, init:4, xp:60},
@@ -290,27 +290,27 @@ Object.assign(ENEMIES, {
   hymnist:{name:'River Cantor', hp:300, dmg:[38,42], acc:74, dodge:6, armor:0, init:5, xp:70, ranged:true, row:'back',
     spec:{every:3, name:'Drowning Hymn', windup:'{n} sings, and river water rises out of the stones toward you.', mult:1.5, aoe:true}},
   choir:{name:'Ember Choir', hp:240, dmg:[36,40], acc:74, dodge:6, armor:0, init:5, xp:60, ranged:true, row:'back', greyChance:25},
-  ashbound:{name:'The Hollow-Bound', hp:820, dmg:[56,64], acc:74, dodge:2, armor:3, init:4, xp:200, hollow:true,
+  ashbound:{name:'The Hollow-Bound', hp:720, dmg:[56,64], acc:74, dodge:2, armor:3, init:4, xp:200, hollow:true,
     spec:{every:3, name:'Ash Fall', windup:'{n} raises both arms, and the ash on the floor rises with them.', mult:2.0}},
-  palecantor:{name:'The Pale Cantor', hp:1050, dmg:[52,60], acc:78, dodge:8, armor:1, init:7, xp:400, ranged:true, row:'back', greyChance:25,
-    spec:{every:2, name:'Ashen Hymn', windup:'{n} draws breath, and the ash in the pit rises to her voice.', mult:2.4, aoe:true, grey:2}},
+  palecantor:{name:'The Pale Cantor', hp:900, dmg:[52,60], acc:78, dodge:8, armor:1, init:7, xp:400, ranged:true, row:'back', greyChance:25,
+    spec:{every:2, name:'Ashen Hymn', windup:'{n} draws breath, and the ash in the pit rises to her voice.', mult:1.9, aoe:true, grey:2}},
   // The river-priests on the Drowned Steps were dealt with: no river under her song
-  paleWeak:{name:'The Pale Cantor', hp:1050, dmg:[52,60], acc:78, dodge:8, armor:1, init:7, xp:400, ranged:true, row:'back', greyChance:25,
-    spec:{every:2, name:'Ashen Hymn', windup:'{n} draws breath, but without the river under it her song comes up thin.', mult:1.8, aoe:true, grey:2}},
+  paleWeak:{name:'The Pale Cantor', hp:900, dmg:[52,60], acc:78, dodge:8, armor:1, init:7, xp:400, ranged:true, row:'back', greyChance:25,
+    spec:{every:2, name:'Ashen Hymn', windup:'{n} draws breath, but without the river under it her song comes up thin.', mult:1.5, aoe:true, grey:2}},
   // Orrin's sister's boy, who hesitates
   choirDoubt:{name:'Hesitant Chorister', hp:120, dmg:[28,32], acc:74, dodge:6, armor:0, init:5, xp:30, ranged:true, row:'back'}
 });
 Object.assign(COMBATS, {
-  a23_watch:{title:'Under Well Square', level:16, lethal:true, win:'a23_watchWin', back:'a23_watch',
+  a23_watch:{title:'Under Well Square', level:14, lethal:true, win:'a23_watchWin', back:'a23_watch',
     enemies:() => ['kindler', 'kindler', 'kindler', 'handcantor'], intro:'The Hand drop their picks and draw knives.'},
-  a23_warehouse:{title:'Corrin’s Warehouse', level:16, lethal:true, win:'a23_wareWin', back:'a23_warehouse',
+  a23_warehouse:{title:'Corrin’s Warehouse', level:14, lethal:true, win:'a23_wareWin', back:'a23_warehouse',
     enemies:() => ['sarnecarl', 'sarnecarl', 'sarnebolt'].concat(kf().hoard === 'exposed' ? ['sarnecarl'] : []), intro:'The housecarls come out of the dark with lanterns.'},
-  a23_steps:{title:'The Drowned Steps', level:16, lethal:true, flee:true, win:'a23_stepsWin', back:'a23_steps',
+  a23_steps:{title:'The Drowned Steps', level:14, lethal:true, flee:true, win:'a23_stepsWin', back:'a23_steps',
     enemies:() => ['steppriest', 'steppriest', 'hymnist'].concat(wf().barge === 'sunk' ? ['steppriest'] : []), intro:'The priests lift their lamps, and the river lifts with them.'},
-  a23_ossuary:{title:'The Ossuary', level:16, lethal:true, win:'a23_ossWin', back:'a23_ossuary',
+  a23_ossuary:{title:'The Ossuary', level:14, lethal:true, win:'a23_ossWin', back:'a23_ossuary',
     enemies:() => kindled() ? ['handconvert', 'handconvert', 'kindler', 'kindler', 'handcantor'] : ['handconvert', 'handconvert', 'handconvert', 'kindler', 'handcantor'],
     intro:'The converts rise from their pallets as one.'},
-  a23_boss:{title:'The Pale Cantor', level:16, lethal:true, win:'a23_bossWin', back:'a23_voice',
+  a23_boss:{title:'The Pale Cantor', level:14, lethal:true, win:'a23_bossWin', back:'a23_voice',
     enemies:() => {
       // Orrin judged: a Kindled zealot instead of a chorister. Orrin leading: his sister's boy hesitates.
       // The Drowned Steps cleared: no river-priests feeding her hymn.

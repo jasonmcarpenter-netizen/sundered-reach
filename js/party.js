@@ -36,7 +36,11 @@ gainXP = function(n){
 // Someone in the party is hurt or short of spell points (for "Rest" choices in party scenes)
 const partyHurt = () => S.members.some(h => asHeroState(h, () => S.pc.hp < pcMax() || S.pc.sp < spMax()));
 const partyRest = (text) => partyHurt() ? {label:'Rest (restores everyone’s health and spell points)', act: () => { restAll(); S.notice = text || 'You rest. Everyone’s health and spell points are restored.'; render(); }} : null;
-const xpNoteParty = n => { const ups = gainXP(n); return `+${n} experience each${ups.length ? `. Level up: ${ups.join(', ')}.` : '.'}`; };
+// Party experience: each hero gets PARTY_XP_SHARE of what a fight or scene is worth. With the full amount, parties
+// gained 2–4 levels a chapter and reached level 20+ by A2·3, past the point where levels make heroes much stronger.
+const PARTY_XP_SHARE = 0.5;
+const partyXP = n => Math.round(n * PARTY_XP_SHARE);
+const xpNoteParty = n => { n = partyXP(n); const ups = gainXP(n); return `+${n} experience each${ups.length ? `. Level up: ${ups.join(', ')}.` : '.'}`; };
 
 // ---------- starting and restarting ----------
 function beginParty(){

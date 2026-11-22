@@ -278,6 +278,7 @@ function endCombat(result){
   }
   if (result === 'win'){
     over.xp = C.units.filter(u => u.side === 'enemy').reduce((s, u) => s + u.xp, 0);
+    if (C.party) over.xp = partyXP(over.xp);
     if (def.done) def.done();
     over.ups = gainXP(over.xp);
     over.next = def.win;
