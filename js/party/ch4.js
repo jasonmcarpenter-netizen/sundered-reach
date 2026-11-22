@@ -227,14 +227,14 @@ Object.assign(SCENES, {
     choices:[{label:'To the river gate', go:'a24_end'}]})},
   a24_end:{ view: () => {
     const f = S.flags;
-    const txt = [`The plan, when you make it at dawn in ${f.base === 'gull' ? 'the Gull’s Rest' : 'the Pilgrims’ Hostel'}, is simple and impossible. The cage ends stone by stone. There are stones everywhere. There are four of you.`,
-      `Kael and Wren go south, to the Third Stone, the one that belonged to Faelan's line, with Brannoc and Tobin. Ilsa and Tamsin go west, to the Spire Coast, to the stone under the Arcanum itself, with Hask and Bracken.`,
+    const txt = [`The plan, when you make it at dawn in ${f.base === 'gull' ? 'the Gull’s Rest' : 'the Pilgrims’ Hostel'}, is simple and impossible. The Keystone has to hold, and it can't hold the way it is. Two things are missing: the shards House Sarne carried off over the years, which belong in the stone, and the rest of what the founders wrote, which the Arcanum has kept locked away since the Sundering, with the healing the Lantern Order lost. There are four of you.`,
+      `Kael and Wren go south, to Varrow and House Sarne's own country, after the shards, with Brannoc and Tobin. Ilsa and Tamsin go west, to the Spire Coast and the Arcanum, after the founders' words and the lost cure, with Hask and Bracken.`,
       f.boatReady ? `Tobin's fishing boat is waiting at the river gate, as promised, for the two going south.` : `There's a fishing boat at the river gate that'll take two and a dog, for a price.`,
       `On the quay, before the boat goes, Wren kneels and puts her hand in the river and says, quietly, "Faelan." The water takes it downstream, toward the sea.`,
-      `"When we get to the last stone," says Ilsa, "we'll tell it his name."`];
+      `"When we come back," says Ilsa, "we'll tell the Keystone his name."`];
     return {title:'The River Gate', text:txt, choices:[{label:'End of Act 2', act: () => {
       setQ('council', 'done', f.council === 'broken' ? 'The four broke the Council of Corvane. The city knows everything.' : 'The four bargained with the Council of Corvane for writs to every Wardstone.');
-      quest('stones', 'The Stones', 'End the cage, stone by stone. Kael and Wren go south to the Third Stone; Ilsa and Tamsin go west to the Spire Coast.');
+      quest('split', 'Two Roads', 'Kael and Wren go south after House Sarne’s shards. Ilsa and Tamsin go west to the Arcanum, for the founders’ full text and the lost cure. Then back to Corvane, before the Keystone breaks.');
       S.mode = 'end'; save(); render(true);
     }}]};
   }}
@@ -315,6 +315,6 @@ HEROES.party.echoes = () => {
   else if (f.kingDone) e.push('The four found the King, grey and hidden under the Council House, and left him.');
   if (f.council === 'broken') e.push('The four broke the Council of Corvane. The city knows everything; half of it calls them heroes and half wants them hanged.');
   if (f.council === 'bargain') e.push('The four hold writs to every Wardstone in the Reach under the Council’s seal. The Council keeps its secret, and Corrin Sarne walked free.');
-  if (f.a24Boss) e.push('Kael and Wren have gone south to the Third Stone; Ilsa and Tamsin west to the Spire Coast.');
+  if (f.a24Boss) e.push('Kael and Wren have gone south after House Sarne’s shards; Ilsa and Tamsin west to the Arcanum, for the founders’ full text and the lost cure.');
   return e;
 };
