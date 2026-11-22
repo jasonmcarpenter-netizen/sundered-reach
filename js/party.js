@@ -180,13 +180,13 @@ renderSelect = function(){
 const PARTY_TUNED_LEVEL = 9;
 const PARTY_SCALE = {hp:0.08, dmg:0.05};
 const PARTY_SCALE_CAP = 2; // levels above the tuning level that still scale; past it, being ahead pays off
-function partyLevel(){ const ls = (M.party ? M.party.members : PARTY).map(id => M.heroes[id].level); return ls.reduce((a, b) => a + b, 0) / ls.length; }
-function partyScaleFactors(def){
-  const d = Math.min(PARTY_SCALE_CAP, partyLevel() - (def.level || PARTY_TUNED_LEVEL));
+function partyLevel(ids){ const ls = (ids || (M.party ? M.party.members : PARTY)).map(id => M.heroes[id].level); return ls.reduce((a, b) => a + b, 0) / ls.length; }
+function partyScaleFactors(def, ids){
+  const d = Math.min(PARTY_SCALE_CAP, partyLevel(ids) - (def.level || PARTY_TUNED_LEVEL));
   return {hp: Math.max(0.7, 1 + PARTY_SCALE.hp * d), dmg: Math.max(0.7, 1 + PARTY_SCALE.dmg * d)};
 }
-function scalePartyEnemies(enemies, def){
-  const f = partyScaleFactors(def);
+function scalePartyEnemies(enemies, def, ids){
+  const f = partyScaleFactors(def, ids);
   if (f.hp === 1 && f.dmg === 1) return;
   enemies.forEach(e => { e.hp = e.max = Math.round(e.max * f.hp); e.dmg = e.dmg.map(x => Math.round(x * f.dmg)); });
 }

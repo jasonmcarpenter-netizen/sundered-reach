@@ -453,6 +453,43 @@
     notes.push(...B.endEchoes().slice(-3));
     return notes;
   };
+  // Act 2 chapter 4, from the end screen of chapter 3 (or o.restart: restart the chapter, to replay it with another
+  // o.betrayer forced). o.orme: recruit Orme; o.king: Tamsin mends the King; o.council: 'broken' | 'bargain'
+  B.party4 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    if (o.restart) restartChapter();
+    else [...document.querySelectorAll('.end .btn')].find(b => /Begin chapter 4/.test(b.textContent)).click();
+    if (S.scene !== 'a24_intro') throw new Error('A2·4 did not start: ' + S.scene);
+    const real = a24Betrayer; if (o.betrayer) a24Betrayer = () => o.betrayer;
+    try {
+      notes.push('levels ' + PARTY.map(id => M.heroes[id].level).join('/') + ', crown ' + crownStanding() + ' ' + crownMood() + ', split ' + a24Split());
+      B.ch('Get ready');
+      for (const who of ['Hask', 'Bracken', 'Tobin']){ B.visit('a24_base'); B.ch(who); B.ch('Back'); }
+      if (o.orme){ B.visit('a24_orme'); if (B.has('Then say it')) B.ch('Then say it'); B.ch('Back'); }
+      B.visit('a24_court'); B.ch('Back');
+      B.spendParty(); restAt('a24_base');
+      B.visit('a24_house'); B.ch('Put your case');
+      if (B.has('Invoke the old law')){ B.ch('Invoke the old law'); B.ch('Go on'); }
+      let guard = 0;
+      while (S.scene === 'a24_session' && guard++ < 10){
+        const c = SCENES.a24_session.view().choices.find(c => !/Rest your case|Say nothing|Invoke/.test(c.label) && (!c.req || c.req()));
+        if (!c) break; B.ch(c.label);
+      }
+      if (S.scene === 'a24_session') B.ch(B.has('Rest your case') ? 'Rest your case' : 'Say nothing');
+      grab(); notes.push('shown ' + (S.flags.shown || []).join(',') + ', case ' + S.flags.caseScore + ', betrayer ' + S.flags.betrayer);
+      B.ch('Go on');
+      if (a24Split()){ B.ch('Ilsa and Tamsin fight'); B.ch('Fight'); await fight(); B.ch('Meanwhile'); B.ch('Stop them'); await fight(); B.ch('Down to the Keystone'); }
+      else { B.ch('Fight'); B.ch('Fight'); await fight(); B.ch('Down the Binder'); }
+      if (o.king){ B.visit('a24_king'); B.ch('Tamsin lays'); B.ch('Back'); }
+      B.spendParty(); restAt('a24_cell');
+      B.visit('a24_binder'); notes.push('boss at ' + PARTY.map(id => M.heroes[id].level).join('/') + (S.flags.kingSpoke ? ', the King spoke' : ''));
+      B.ch('Fight the Lord Binder'); await fight();
+      B.ch('Decide together'); B.ch(o.council === 'bargain' ? 'Bargain' : 'Break the Council'); B.ch('To the river gate'); B.ch('End of Act 2');
+      notes.push('council ' + S.flags.council);
+      notes.push(...B.endEchoes().slice(-4));
+    } finally { a24Betrayer = real; }
+    return notes;
+  };
   // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
   // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
   B.psim = function(xp, combatId, n, flags, heroFlags){
@@ -499,6 +536,7 @@
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'wren', shown:'ilsa', base:'gull', town:'fight', cache:true, ward:'wren', pillar:'watched'})).join(' | '));
       if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'drains', force:true, slow:true, doorFight:true, hear:true, keystone:'released'})).join(' | '));
       if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'orrin', ware:'fight', steps:true, talk:true, plan:'trap', evidence:'kept'})).join(' | '));
+      if (hasChapter('party', 4)) lines.push('     act2 ch4: ' + (await B.party4({king:true, council:'broken'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -515,6 +553,10 @@
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'kael', shown:'tamsin', base:'hostel', pillar:'told'})).join(' | '));
       if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'pass', keystone:'bound'})).join(' | '));
       if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'quell', quellPay:true, listen:true, ware:'talk', plan:'struck', evidence:'marrow'})).join(' | '));
+      if (hasChapter('party', 4)){
+        lines.push('     act2 ch4: ' + (await B.party4({orme:true, council:'bargain'})).join(' | '));
+        for (const b of ['dario', 'quell']) lines.push(`     act2 ch4 (${b} forced): ` + (await B.party4({restart:true, betrayer:b, king:true, council:'broken'})).join(' | '));
+      }
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -570,6 +612,13 @@
       for (const id of ['a23_watch', 'a23_warehouse', 'a23_steps', 'a23_ossuary']) lines.push(B.psim(3260, id, n));
       const easy = [{lead:'orrin', stepsDone:true}, {tamsin:{orrin:'freed'}}];
       for (const [xp, f, hf] of [[2660, null], [3260, null], [3260, {stepsDone:true}], [3260, ...easy], [3860, null], [4460, null]]) lines.push(B.psim(xp, 'a23_boss', n, f, hf));
+    }
+    // Act 2 ch4 (parties arrive at about level 13–17): the hall fight (all four) or the split fights (two heroes each),
+    // then the Lord Binder for each betrayer, with a weak case; a strong case and the King's word
+    if (COMBATS.a24_boss){
+      lines.push(B.psim(3560, 'a24_hall', n, {betrayer:'dario'}), B.psim(3560, 'a24_chamber', n), B.psim(3560, 'a24_root', n), B.psim(3560, 'a24_root', n, {betrayer:'quell'}));
+      for (const b of ['marrow', 'hale', 'dario', 'quell']) lines.push(B.psim(3560, 'a24_boss', n, {betrayer:b}));
+      for (const [xp, f] of [[2960, {betrayer:'hale'}], [3560, {betrayer:'hale', caseScore:6, kingSpoke:true}], [4160, {betrayer:'hale'}], [4760, {betrayer:'hale'}]]) lines.push(B.psim(xp, 'a24_boss', n, f));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

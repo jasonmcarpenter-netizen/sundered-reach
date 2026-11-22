@@ -42,7 +42,9 @@ function startCombat(id){
   let heroes;
   if (isPartyState(S)){
     const P = S;
-    heroes = P.members.map(hid => Object.assign(asHeroState(hid, () => heroUnit(hid, hid)), {row:(P.rows && P.rows[hid]) || HEROES[hid].row}));
+    // A party fight can name its own heroes (def.members), for when the party is split
+    const who = def.members ? def.members() : P.members;
+    heroes = who.map(hid => Object.assign(asHeroState(hid, () => heroUnit(hid, hid)), {row:(P.rows && P.rows[hid]) || HEROES[hid].row}));
   } else {
     heroes = [heroUnit('pc', S.hero)];
     if (S.ally.joined){
@@ -51,7 +53,7 @@ function startCombat(id){
     }
   }
   C = {id, def, snap, party:isPartyState(S), units:heroes.concat(enemies), order:[], idx:0, round:0, log:[def.intro], phase:'wait', active:null, pick:null, over:null, gen:0, used:{}};
-  if (C.party) scalePartyEnemies(enemies, def);
+  if (C.party) scalePartyEnemies(enemies, def, heroes.map(u => u.hero));
   render(true);
   later(newRound, 350);
 }
