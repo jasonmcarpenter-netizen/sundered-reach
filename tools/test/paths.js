@@ -414,6 +414,45 @@
     notes.push(...B.endEchoes().slice(-4));
     return notes;
   };
+  // Act 2 chapter 3, from the end screen of chapter 2. o.lead: 'orrin' | 'watch' | 'trace' | 'quell' (falls back to
+  // Quell); o.quellPay; o.listen (Ilsa listens, if the Word holds the stone); o.ware: 'talk' | 'fight'; o.steps;
+  // o.talk (Orrin talks the converts out); o.plan: 'struck' | 'trap'; o.evidence: 'marrow' | 'kept'
+  B.party3 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    [...document.querySelectorAll('.end .btn')].find(b => /Begin chapter 3/.test(b.textContent)).click();
+    if (S.scene !== 'a23_intro') throw new Error('A2·3 did not start: ' + S.scene);
+    notes.push('levels ' + PARTY.map(id => M.heroes[id].level).join('/') + ', crown ' + crownStanding() + ' ' + crownMood());
+    if (o.listen && B.has('Ilsa sits')) B.ch('Ilsa sits');
+    B.ch('Go looking');
+    B.visit('a23_leads'); grab();
+    let l = o.lead === 'orrin' ? first('Tamsin: “You kept') : o.lead === 'watch' ? first('Go down to your watch') : o.lead === 'trace' ? first('Follow Corrin', 'Give Bracken', 'Wren: watch the river') : null;
+    if (!l) l = o.quellPay && B.has('Buy what Quell') ? 'Buy what Quell' : 'Owe Mother Quell';
+    B.ch(l);
+    if (S.scene === 'a23_watch'){ B.ch('Spring the trap'); await fight(); }
+    grab(); B.ch('Back'); notes.push('lead ' + S.flags.lead + (S.flags.quellFavour ? ' (favour)' : ''));
+    if (o.ware){
+      B.visit('a23_warehouse'); grab();
+      const w = o.ware === 'fight' ? null : first('Walk in like', 'Go in over');
+      if (w) B.ch(w); else { B.ch('Go in through'); await fight(); }
+      B.ch('Back'); notes.push('proof ' + S.flags.corrinProof);
+    }
+    B.spendParty(); restAt('a23_base');
+    if (o.steps){ B.visit('a23_steps'); B.ch('Meet them'); await fight(); B.ch('Back'); restAt('a23_base'); }
+    B.visit('a23_down'); B.ch('Down into');
+    B.visit('a23_ossuary');
+    if (o.talk && B.has('Orrin steps')) B.ch('Orrin steps'); else { B.ch('Fight your way'); await fight(); }
+    B.ch('Back'); notes.push('freed ' + S.flags.handFreed);
+    B.visit('a23_chapter'); B.ch('Back');
+    B.spendParty(); restAt('a23_cistern');
+    B.visit('a23_voice'); grab(); notes.push('boss at ' + PARTY.map(id => M.heroes[id].level).join('/'));
+    B.ch('Stop her'); await fight();
+    B.ch('Decide together'); B.ch(o.plan === 'trap' ? 'Leave it standing' : 'Bring it down'); B.ch('Continue');
+    B.ch(o.evidence === 'marrow' ? 'Give the evidence' : 'Keep it.'); B.ch('End of Act 2');
+    notes.push('plan ' + S.flags.handPlan + ', evidence ' + S.flags.evidenceTo + ', crown ' + crownStanding() + ' ' + crownMood());
+    notes.push(...B.endEchoes().slice(-3));
+    return notes;
+  };
   // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
   // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
   B.psim = function(xp, combatId, n, flags, heroFlags){
@@ -459,6 +498,7 @@
       lines.push('     party engine: ' + (await B.partyTest()).join(' | '));
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'wren', shown:'ilsa', base:'gull', town:'fight', cache:true, ward:'wren', pillar:'watched'})).join(' | '));
       if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'drains', force:true, slow:true, doorFight:true, hear:true, keystone:'released'})).join(' | '));
+      if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'orrin', ware:'fight', steps:true, talk:true, plan:'trap', evidence:'kept'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -474,6 +514,7 @@
       if (hasChapter('tamsin', 3)) lines.push('     tamsin3: ' + (await B.tamsin3({rite:'saved', slow:true})).join(' | '));
       if (hasChapter('party', 1)) lines.push('     act2 ch1: ' + (await B.party1({trust:'kael', shown:'tamsin', base:'hostel', pillar:'told'})).join(' | '));
       if (hasChapter('party', 2)) lines.push('     act2 ch2: ' + (await B.party2({way:'pass', keystone:'bound'})).join(' | '));
+      if (hasChapter('party', 3)) lines.push('     act2 ch3: ' + (await B.party3({lead:'quell', quellPay:true, listen:true, ware:'talk', plan:'struck', evidence:'marrow'})).join(' | '));
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
     const sims = [
@@ -522,6 +563,13 @@
     if (COMBATS.a22_boss){
       lines.push(B.psim(2660, 'a22_drains', n, {drainHow:'forced'}), B.psim(2660, 'a22_door', n, {alarm:true}));
       for (const [xp, f, hf] of [[2360, null], [2660, null], [2660, {heardFather:'wren'}], [2660, null, {tamsin:{lanternCost:true}}], [3260, null], [4460, null]]) lines.push(B.psim(xp, 'a22_boss', n, f, hf));
+    }
+    // Act 2 ch3 (parties arrive at about level 14–18): the mid fights, then the Pale Cantor: hardest (Orrin judged, the
+    // Kindled, the river-priests feeding her hymn), steps cleared, and easiest (Orrin freed and leading, steps cleared)
+    if (COMBATS.a23_boss){
+      for (const id of ['a23_watch', 'a23_warehouse', 'a23_steps', 'a23_ossuary']) lines.push(B.psim(3860, id, n));
+      const easy = [{lead:'orrin', stepsDone:true}, {tamsin:{orrin:'freed'}}];
+      for (const [xp, f, hf] of [[3260, null], [3860, null], [3860, {stepsDone:true}], [3860, ...easy], [4460, null], [5960, null]]) lines.push(B.psim(xp, 'a23_boss', n, f, hf));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){

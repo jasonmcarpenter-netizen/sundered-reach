@@ -10,7 +10,7 @@ python3 -m http.server
 # then open http://localhost:8000
 ```
 
-**Built so far:** all of Act 1 (three chapters each for Kael, Ilsa, Tamsin and Wren, ending with all four in Corvane) and the first two chapters of Act 2, where the four meet, play as one party and go under the palace to the Keystone.
+**Built so far:** all of Act 1 (three chapters each for Kael, Ilsa, Tamsin and Wren, ending with all four in Corvane) and the first three chapters of Act 2, where the four meet, play as one party, go under the palace to the Keystone and hunt the Ashen Hand.
 
 **Saving across devices:** choose "Sign in to sync" on the title screen or in the menu and sign in with Google. Your progress then follows you to any device where you sign in. Signed out, the game saves on the device you're playing on. You can also move a save by hand: Menu → save code, then "Use a save code" on the title screen of the other device.
 

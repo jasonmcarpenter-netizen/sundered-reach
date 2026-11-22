@@ -20,6 +20,7 @@ function crownStanding(){
   if (f.pillar === 'told') n++;
   // A2·2: seen breaking into the palace; releasing the Keystone's anchor in front of the Crown's captain
   if (f.brokeIn) n--; if (f.keystone === 'released' && f.way === 'pass') n--;
+  if (f.evidenceTo === 'marrow') n++; // A2·3: trusted her with the evidence
   return n;
 }
 const crownMood = () => { const n = crownStanding(); return n >= 4 ? 'warm' : n >= 1 ? 'wary' : 'cold'; };
