@@ -565,6 +565,36 @@
     notes.push(...B.endEchoes().slice(-3));
     return notes;
   };
+  // West 1, from the select screen. o.gateFight, o.furnace, o.seal ('blood' | 'word' | 'lore'), o.arcanum ('exposed' | 'deal')
+  B.w1 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    screen = 'select'; render(true);
+    [...document.querySelectorAll('.hero.party')].find(c => c.textContent.includes('Act 3: Ilsa and Tamsin')).querySelector('.btn').click();
+    if (S.scene !== 'a3w1_intro') throw new Error('W1 did not start: ' + S.scene);
+    notes.push('levels ' + S.members.map(id => M.heroes[id].level).join('/') + ', gold ' + S.gold + ', south ledger ' + pairF('south').s1Ledger);
+    B.ch('Ashore');
+    B.visit('a3w1_inn'); grab(); if (B.has('Sit down with Tobin')) B.ch('Sit down with Tobin'); B.ch('Back');
+    B.visit('a3w1_quill'); B.ch(first('“Then take us', 'Ilsa: “You told Aurel', 'Ask him for anything')); B.ch('Back');
+    notes.push('quill ' + S.flags.quillWay + (S.flags.spireProof ? ', ledger' : ''));
+    B.visit('a3w1_gate'); grab();
+    const g = o.gateFight ? null : first('Let Hask talk', 'Wait for a supply');
+    if (g) B.ch(g); else { B.ch('Go through the Wardens'); await fight(); }
+    B.ch('Back'); notes.push('gate ' + S.flags.gateHow);
+    if (o.furnace){ B.visit('a3w1_furnace'); B.ch('Stop them'); await fight(); B.ch('Back'); }
+    B.spendParty(); restAt('a3w1_inn');
+    B.visit('a3w1_down'); B.ch('Down into');
+    B.visit('a3w1_seal');
+    B.ch(o.seal === 'word' ? 'Ilsa speaks' : o.seal === 'lore' && B.has('Unpick') ? 'Unpick' : first('Tamsin lets one drop', 'Ilsa speaks'));
+    B.ch('Back'); notes.push('seal ' + S.flags.sealHow + ', vial ' + S.flags.vial + (S.flags.alarm ? ', alarm' : ''));
+    B.spendParty(); restAt('a3w1_reading');
+    B.visit('a3w1_morn'); notes.push('boss at ' + S.members.map(id => M.heroes[id].level).join('/'));
+    B.ch('Fight the Archmagister'); await fight();
+    B.ch('What now'); B.ch(o.arcanum === 'exposed' ? 'Read it to' : 'Make Quill'); B.ch('End of chapter');
+    notes.push('arcanum ' + S.flags.w1Arcanum);
+    notes.push(...B.endEchoes().slice(-3));
+    return notes;
+  };
   // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
   // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
   // group: 'south' | 'west' simulates an Act 3 pair fight (two heroes and their companions) instead of the party
@@ -617,6 +647,7 @@
       if (hasChapter('party', 4)) lines.push('     act2 ch4: ' + (await B.party4({king:true, council:'broken'})).join(' | '));
       if (hasChapter('party', 4)) lines.push('     pair engine: ' + (await B.pairTest()).join(' | '));
       if (hasChapter('south', 1)) lines.push('     act3 s1: ' + (await B.s1({gateFight:true, oszin:true, tunnel:'grey', shards:'ward', ledger:'west'})).join(' | '));
+      if (hasChapter('west', 1)) lines.push('     act3 w1: ' + (await B.w1({gateFight:true, furnace:true, seal:'word', arcanum:'exposed'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -637,6 +668,7 @@
         lines.push('     act2 ch4: ' + (await B.party4({orme:true, council:'bargain'})).join(' | '));
         for (const [b, council] of [['dario', 'broken'], ['quell', 'bargain']]) lines.push(`     act2 ch4 (${b} forced): ` + (await B.party4({restart:true, betrayer:b, king:true, council})).join(' | '));
         if (hasChapter('south', 1)) lines.push('     act3 s1: ' + (await B.s1({countFight:true, ledger:'kept'})).join(' | '));
+        if (hasChapter('west', 1)) lines.push('     act3 w1: ' + (await B.w1({seal:'lore', arcanum:'deal'})).join(' | '));
       }
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
@@ -706,6 +738,12 @@
     if (COMBATS.a3s1_boss){
       for (const id of ['a3s1_gate', 'a3s1_counting', 'a3s1_tunnels']) lines.push(B.psim(3860, id, n, null, {kael:{captain:'handed'}}, 'south'));
       for (const [xp, f] of [[3260, null], [3860, null], [3860, {tallyHelp:true}], [3860, {tunnelHow:'grey'}], [4460, null]]) lines.push(B.psim(xp, 'a3s1_boss', n, f, null, 'south'));
+    }
+    // Act 3 west 1 (pairs arrive at about level 14–18): the mid fights, then Archmagister Morn: plain, with Quill and the
+    // ledger, with the alarm rung, and with Hale at her shoulder
+    if (COMBATS.a3w1_boss){
+      for (const id of ['a3w1_gate', 'a3w1_furnace']) lines.push(B.psim(3860, id, n, null, null, 'west'));
+      for (const [xp, f] of [[3260, null], [3860, null], [3860, {spireProof:true, quillWay:'led'}], [3860, {alarm:true}], [3860, {betrayer:'hale'}], [4460, null]]) lines.push(B.psim(xp, 'a3w1_boss', n, f, null, 'west'));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){
