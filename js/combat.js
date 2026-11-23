@@ -49,7 +49,7 @@ function startCombat(id){
     heroes = who.map(hid => Object.assign(asHeroState(hid, () => heroUnit(hid, hid)), {row:(P.rows && P.rows[hid]) || HEROES[hid].row}));
     // Act 3 pairs fight beside their companions, toughened to party scale (PAIR_ALLY in party.js); they start each fight fresh
     if (P.allies) who.forEach(hid => asHeroState(hid, () => {
-      if (!S.ally || !S.ally.joined) return;
+      if (!S.ally || !S.ally.joined || (P.awayAllies || []).includes(hid)) return; // a companion sent off on an errand (P.awayAllies, by owner)
       const a = ALLIES[S.ally.id], mx = Math.round(allyMax() * PAIR_ALLY.hp);
       heroes.push({id:'ally_' + hid, allyId:S.ally.id, owner:hid, side:'hero', name:a.name, hp:mx, max:mx, sp:0, spMax:0, row:a.row, init:a.init, dodge:a.dodge, armor:a.armor, dmgMult:PAIR_ALLY.dmg, st:{}, cd:{}});
     }));
