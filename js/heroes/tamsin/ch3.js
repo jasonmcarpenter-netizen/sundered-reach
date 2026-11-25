@@ -11,7 +11,7 @@ const tXP = (n) => { const ups = gainXP(n); return `+${n} experience${ups.length
 
 // Performing the Second Lantern burns part of Tamsin's own light: Mend the Grey heals and burns for half
 ACTIONS.mendgrey.run = function(u){
-  C.used.mendgrey = true; const weak = S.hero === 'tamsin' && S.flags.lanternCost;
+  C.used.mendgrey = true; const weak = S.hero === 'tamsin' && S.flags.lanternCost && !(typeof pairF === 'function' && pairF('west').lanternHealed); // Act 3 W2 can heal the cost
   const heal = Math.ceil((6 + sk('divine') * 2) / (weak ? 2 : 1));
   log(weak ? 'Tamsin lays her hands flat on the air. The light comes thinner than it used to, but the grey still draws back.' : 'Tamsin lays her hands flat on the air, and the grey draws back like a tide.');
   heroesAlive().forEach(x => { delete x.st.grey; x.hp = Math.min(x.max, x.hp + heal); });
