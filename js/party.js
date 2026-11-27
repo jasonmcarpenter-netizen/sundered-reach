@@ -229,7 +229,7 @@ renderEnd = function(){
     HEROES[S.hero].echoes().map(t => h('div', {class:'echo', html:t})),
     h('h3', {style:'font-size:20px;margin:18px 0 6px'}, 'Chronicle'),
     S.chronicle.map(t => h('div', {class:'q', style:'font-size:15px'}, t)),
-    h('p', {class:'muted', style:'margin-top:18px'}, next.length ? 'What next?' : 'The next chapter is being written.'),
+    h('p', {class:'muted', style:'margin-top:18px'}, next.length ? 'What next?' : S.flags.gameOver ? 'The end of The Sundered Reach, Game 1. Thank you for playing.' : 'The next chapter is being written.'),
     h('div', {style:'display:flex;gap:8px;flex-wrap:wrap'},
       next.map((x, i) => h('button', {class: i ? 'btn ghost' : 'btn', onclick: x.act}, x.label)),
       h('button', {class: next.length ? 'btn ghost' : 'btn', onclick: () => { screen = 'select'; render(true); }}, 'Choose a hero'),
@@ -244,12 +244,12 @@ renderSelect = function(){
   const st = partyStep(), p = M && M.party, finale = p && chapterOf(p) >= 4;
   const label = st.kind === 'locked' ? 'Opens when all four heroes have finished chapter 3.'
     : st.kind === 'pairs' ? 'The four meet again when both pairs have finished their roads.'
-    : st.kind === 'unbuilt' ? (p ? 'The next chapter is being written.' : 'All four have reached Corvane. Act 2 is being written.')
+    : st.kind === 'unbuilt' ? (p ? (p.flags.gameOver ? 'Game 1 is complete.' : 'The next chapter is being written.') : 'All four have reached Corvane. Act 2 is being written.')
     : st.kind === 'continue' ? `Chapter ${st.n}: ${chapterTitle('party', st.n)}` : `Ready: chapter ${st.n}, ${chapterTitle('party', st.n)}`;
   const btn = st.kind === 'continue' ? 'Continue' : st.kind === 'start' ? 'Begin Act 2' : st.kind === 'next' ? `Begin chapter ${st.n}` : 'Not yet';
   grid.append(h('div', {class:'hero party' + (st.can ? '' : ' locked')},
     h('h3', {}, finale ? 'The four, together' : 'Act 2: Together'), h('div', {class:'role'}, 'Kael · Ilsa · Tamsin · Wren'), h('div', {class:'muted', style:'font-size:14px'}, 'Corvane'),
-    h('p', {}, finale ? 'Act 2, and later the finale.' : 'The four meet in the capital as strangers, and find out what the Heartland Wardstone really is.'),
+    h('p', {}, finale ? (p.flags.gameOver ? 'The end of Game 1.' : 'Act 2, and the finale: all four beneath Corvane.') : 'The four meet in the capital as strangers, and find out what the Heartland Wardstone really is.'),
     h('div', {class:'hstatus'}, label),
     h('button', {class:'btn', disabled: !st.can, onclick: () => { if (st.kind === 'next'){ beginParty(); beginPartyChapter(st.n); } else beginParty(); }}, btn)));
   if (!finale) return;

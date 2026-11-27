@@ -651,6 +651,72 @@
     notes.push(...B.endEchoes().slice(-3));
     return notes;
   };
+  // Finale 1, from the select screen. o.corrin ('free' | 'ledger' | 'hold'), o.squareFight, o.stair ('lantern' |
+  // 'blood' | 'lore' | 'fight'), o.pillar ('light' | 'tamsin' | 'fall')
+  B.f1 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    screen = 'select'; render(true);
+    [...document.querySelectorAll('.hero.party')].find(c => c.textContent.includes('The four, together')).querySelector('.btn').click();
+    if (S.scene !== 'a3f1_intro') throw new Error('F1 did not start: ' + S.scene);
+    notes.push('levels ' + S.members.map(id => M.heroes[id].level).join('/') + ', gold ' + S.gold + ', light ' + finaleLight());
+    B.ch('Tell each other'); grab(); B.ch('Dawn');
+    B.visit('a3f1_base'); if (B.has('Hask')) { B.ch('Hask'); B.ch('Back'); } else B.ch('Back');
+    B.visit('a3f1_cell'); grab();
+    B.ch(o.corrin === 'free' ? 'Kael: “Draw it' : o.corrin === 'ledger' ? first('Kael puts the green', '“No.') : '“No.'); B.ch('Back');
+    B.visit('a3f1_binder'); grab(); B.ch('Back');
+    B.visit('a3f1_court'); grab(); for (const l of ['Take the King', 'Take the Watch', '“Ward the wells']) if (B.has(l)) B.ch(l); B.ch('Back');
+    notes.push('corrin ' + S.flags.corrinDeal + (S.flags.routeKnown ? ', route' : '') + ', crown ' + S.flags.crownHelp + (S.flags.quillWards ? ', wards' : ''));
+    B.spendParty(); restAt('a3f1_base');
+    B.visit('a3f1_square'); grab();
+    const sq = o.squareFight ? null : first('Take the Cinder Father', 'Send word to the Iron');
+    if (sq) B.ch(sq); else { B.ch('Go through them'); await fight(); }
+    if (S.mode === 'scene' && S.scene === 'a3f1_tally'){ B.ch('Back'); B.visit('a3f1_square'); }
+    notes.push('square ' + S.flags.squareHow); B.ch('Down under Corvane');
+    B.visit('a3f1_stair');
+    const sc = o.stair === 'fight' ? null : o.stair === 'blood' ? first('Tamsin breaks the vial', 'Wren unhoods') : o.stair === 'lore' ? first('Ilsa reads the founders', 'Wren unhoods') : first('Wren unhoods', 'Tamsin breaks the vial', 'Ilsa reads the founders');
+    if (sc) B.ch(sc); else { B.ch('Go down through it'); await fight(); }
+    B.ch('Back'); notes.push('stair ' + S.flags.stairHow + ', light ' + finaleLight());
+    B.spendParty(); restAt('a3f1_cistern');
+    B.visit('a3f1_gallery'); notes.push('boss at ' + S.members.map(id => M.heroes[id].level).join('/'));
+    B.ch('Fight Tavish'); await fight();
+    B.ch('The root');
+    B.ch(o.pillar === 'fall' ? 'Let it go' : o.pillar === 'tamsin' ? 'Tamsin holds it' : first('Hold it with light', 'Tamsin holds it'));
+    B.ch('Down'); B.ch('End of chapter');
+    notes.push('pillar ' + S.flags.f1Pillar + ', light ' + finaleLight() + (S.flags.tamsinPaid ? ', Tamsin paid' : ''));
+    notes.push(...B.endEchoes().slice(-3));
+    return notes;
+  };
+  // Finale 2, from the chapter end. o.stairFight, o.face (Wren's hand on the stone), o.talk, o.end ('mended' | 'bargain' | 'anchor')
+  B.f2 = async (o) => {
+    const notes = []; const grab = () => document.querySelectorAll('.scene .echo').forEach(e => notes.push(S.scene + ': ' + e.textContent.slice(0, 70)));
+    const first = (...ls) => ls.find(l => B.has(l));
+    screen = 'select'; render(true);
+    [...document.querySelectorAll('.hero.party')].find(c => c.textContent.includes('The four, together')).querySelector('.btn').click();
+    if (S.scene !== 'a3f2_intro') throw new Error('F2 did not start: ' + S.scene);
+    notes.push('levels ' + S.members.map(id => M.heroes[id].level).join('/') + ', light ' + finaleLight());
+    B.ch('Look back'); grab(); notes.push('allies ' + (S.flags.f2Allies || []).join(',')); B.ch('Go on together');
+    B.visit('a3f2_post'); B.ch('Back');
+    if (o.face){ B.visit('a3f2_face'); B.ch(first('Wren puts her hand', 'No time')); if (S.scene === 'a3f2_heard') B.ch('Back'); }
+    B.visit('a3f2_stair');
+    const st = o.stairFight ? null : first('Leave them to us', 'Let Orrin');
+    if (st) B.ch(st); else { B.ch('Cut through them'); await fight(); }
+    B.ch('Back'); notes.push('stair ' + S.flags.stairHeld + (S.flags.heardStone ? ', heard the stone' : ''));
+    B.spendParty(); restAt('a3f2_post');
+    B.visit('a3f2_hall'); grab(); notes.push('boss at ' + S.members.map(id => M.heroes[id].level).join('/') + ', guard ' + f2Guard());
+    if (o.talk && B.has('Listen')) B.ch('Listen');
+    B.ch('Fight Severin'); await fight();
+    B.ch('Decide');
+    const choices = SCENES.a3f2_choice.view().choices.map(c => c.label);
+    notes.push('options: ' + choices.join(' / '));
+    B.ch(o.end === 'bargain' ? first('Ilsa makes the Hollow', 'Mend it', 'Let Severin') : o.end === 'anchor' ? 'Let Severin' : first('Mend it', 'Let Severin'));
+    B.ch('After'); B.ch('The end');
+    notes.push('end ' + S.flags.f2End + (S.flags.tamsinSpent ? ', Tamsin spent' : '') + (S.flags.wordGone ? ', Word gone' : '') + (S.flags.faelanOut ? ', Faelan out' : ''));
+    const endTxt = document.querySelector('.end') && document.querySelector('.end').textContent;
+    if (!/Game 1/.test(endTxt || '')) throw new Error('no game-end line on the last chapter end');
+    notes.push(...B.endEchoes().slice(-3));
+    return notes;
+  };
   // Party balance sim: four fresh heroes at `xp` each, built like the bot builds them, with Act 2 supplies.
   // heroFlags: per-hero flags, e.g. {tamsin:{lanternCost:true}}
   // group: 'south' | 'west' simulates an Act 3 pair fight (two heroes and their companions) instead of the party
@@ -707,6 +773,8 @@
       if (hasChapter('west', 1)) lines.push('     act3 w1: ' + (await B.w1({gateFight:true, furnace:true, seal:'word', arcanum:'exposed'})).join(' | '));
       if (hasChapter('south', 2)) lines.push('     act3 s2: ' + (await B.s2({road:true, gateFight:true, face:'grey', lamp:'west'})).join(' | '));
       if (hasChapter('west', 2)) lines.push('     act3 w2: ' + (await B.w2({road:true, answer:false, wake:'word', flame:'spent'})).join(' | '));
+      if (hasChapter('party', 5)) lines.push('     finale f1: ' + (await B.f1({corrin:'free', squareFight:true, stair:'fight', pillar:'fall'})).join(' | '));
+      if (hasChapter('party', 6)) lines.push('     finale f2: ' + (await B.f2({stairFight:true, end:'mended'})).join(' | '));
     });
     await play('friendly branches: Kael spares Dario, Ilsa reports, Tamsin judges Orrin (held shrine), Wren bluffs and sells, Ilsa ch2 stays silent', async () => {
       await B.kael({dario:'spared'}); await B.ilsa({choice:'report'}); await B.tamsin({orrin:'judged'});
@@ -730,6 +798,8 @@
         if (hasChapter('west', 1)) lines.push('     act3 w1: ' + (await B.w1({seal:'lore', arcanum:'deal'})).join(' | '));
         if (hasChapter('south', 2)) lines.push('     act3 s2: ' + (await B.s2({face:'line', lamp:'kept'})).join(' | '));
         if (hasChapter('west', 2)) lines.push('     act3 w2: ' + (await B.w2({answer:true, flame:'carried'})).join(' | '));
+        if (hasChapter('party', 5)) lines.push('     finale f1: ' + (await B.f1({corrin:'ledger', stair:'lore', pillar:'light'})).join(' | '));
+        if (hasChapter('party', 6)) lines.push('     finale f2: ' + (await B.f2({face:true, talk:true, end:'bargain'})).join(' | '));
       }
     });
     lines.push('', `== Boss balance (bot, ${n} first tries each; utility skills bought first, like a player) ==`);
@@ -817,6 +887,19 @@
     if (COMBATS.a3w2_boss){
       for (const id of ['a3w2_road', 'a3w2_shrine']) lines.push(B.psim(4160, id, n, null, null, 'west'));
       for (const [xp, f] of [[3560, null], [4160, null], [4160, {heardTerms:true}], [4160, {aurelHelp:true}], [4160, {wellWake:'word'}], [4760, null]]) lines.push(B.psim(xp, 'a3w2_boss', n, f, null, 'west'));
+    }
+    // Finale 1 (the party regroups at about level 18–20; finale fights are tuned for 20, the cap): Well Square with and without the Crown holding the streets,
+    // the grey stair, then Tavish (Wardstone picks, the default here since the sim has no west pair), from behind by
+    // the Cinder Father's road
+    if (COMBATS.a3f1_boss){
+      lines.push(B.psim(4460, 'a3f1_square', n), B.psim(4460, 'a3f1_square', n, {crownHelp:'king'}), B.psim(4460, 'a3f1_stair', n));
+      for (const [xp, f] of [[4460, null], [4760, null], [4760, {squareHow:'route'}], [5060, null]]) lines.push(B.psim(xp, 'a3f1_boss', n, f));
+    }
+    // Finale 2 (level 19–20): the Binder's stair, then Severin and the Hollow's Hand: alone, with Wren's hand on the
+    // stone, with two allies and his doubt
+    if (COMBATS.a3f2_boss){
+      lines.push(B.psim(4760, 'a3f2_stair', n));
+      for (const [xp, f] of [[4460, null], [4760, null], [4760, {heardStone:true}], [4760, {f2Allies:['wardens', 'orme'], severinDoubt:true}], [5060, null]]) lines.push(B.psim(xp, 'a3f2_boss', n, f));
     }
     // Wren ch3: the Drowned One at levels 6–7; learned the hymn; the Iron Tally helping (Kael freed Brask)
     if (COMBATS.w3_boss) for (const [help, lore, xp] of [[false, false, 1160], [false, true, 1160], [true, true, 1160], [false, true, 860]]){
